@@ -116,6 +116,62 @@ if st.session_state.get("show_details", False):
         df.to_csv(FEEDBACK_FILE, index=False)
         st.session_state["show_details"] = False
         # streamlit_sms.py
+import streamlit as st
+from googletrans import Translator
+from gtts import gTTS
+import os
+SCAM_KEYWORDS = [
+    "otp", "reward", "lottery", "bank", "money", "click link", 
+    "account", "loan", "prize", "gift", "password"
+]
+
+def check_scam_message(message):
+    for word in SCAM_KEYWORDS:
+        if word.lower() in message.lower():
+            return True
+    return False
+    st.title("AI Legal-Aware Translator 🧠⚖️")
+msg = st.text_area("Enter English message or paragraph:")
+
+if st.button("Translate"):
+    translator = Translator()
+    translated = translator.translate(msg, src='en', dest='ta')
+    tamil_text = translated.text
+
+    st.write("### 🈶 Tamil Translation:")
+    st.success(tamil_text)
+
+    # Text-to-speech output
+    tts = gTTS(tamil_text, lang='ta')
+    tts.save("output.mp3")
+    st.audio("output.mp3")
+
+    # 🔔 Check for scam words
+    if check_scam_message(msg):
+        st.error("⚠️ இந்த செய்தி மோசடி (Scam) செய்தியாக இருக்கலாம்! IT Act 66D சட்டத்தின் கீழ் நடவடிக்கை எடுக்கலாம்.")
+        TAMIL_DICTIONARY = {
+    "fraudulent": "மோசடி செய்வது",
+    "beware": "எச்சரிக்கையாக இரு",
+    "scam": "மோசடி",
+    "loan": "கடன்",
+    "reward": "பரிசு",
+    "bank": "வங்கி",
+    "account": "கணக்கு"
+}
+
+def explain_difficult_words(msg):
+    explanations = []
+    words = msg.lower().split()
+    for word in words:
+        if word in TAMIL_DICTIONARY:
+            explanations.append(f"'{word}' means '{TAMIL_DICTIONARY[word]}' in Tamil.")
+    return explanations
+    # 🧠 Smart Meaning Assistant
+explanations = explain_difficult_words(msg)
+if explanations:
+    st.info("### Word Meanings (Tamil Explanation):")
+    for exp in explanations:
+        st.write(exp)
 
 
 
