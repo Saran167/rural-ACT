@@ -150,3 +150,23 @@ if sms:
 
 else:
     st.info("App opened without msg parameter.")
+    import streamlit as st
+from urllib.parse import unquote
+
+# Check for query parameter from SMS
+query_params = st.experimental_get_query_params()
+message = query_params.get("message", [None])[0]
+
+st.title("🔹 English to Tamil Voice Translator 🔹")
+
+# If message is passed in URL (from SMS)
+if message:
+    message = unquote(message)
+    st.write(f"*Received message:* {message}")
+    # call your translation + voice function here
+else:
+    st.info("Enter English text below:")
+    user_input = st.text_input("English Text")
+    if st.button("Translate"):
+        # your translation + voice logic here
+        st.success("Translated successfully!")
