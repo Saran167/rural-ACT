@@ -115,3 +115,38 @@ if st.session_state.get("show_details", False):
         ]
         df.to_csv(FEEDBACK_FILE, index=False)
         st.session_state["show_details"] = False
+        # streamlit_sms.py
+import streamlit as st
+from gtts import gTTS
+from io import BytesIO
+# If you're using googletrans or other translator, include it here
+# from googletrans import Translator
+
+st.title("SMS → Tamil (from SMS)")
+
+# Read query param
+q = st.experimental_get_query_params()
+sms = q.get("msg", [""])[0]
+
+st.write("Incoming SMS:")
+st.write(sms)
+
+if sms:
+    # 1) Translate (placeholder)
+    # Replace this with your translator function
+    # translator = Translator()
+    # translated = translator.translate(sms, dest='ta').text
+    translated = "உதாரண மொழிபெயர்ப்பு: " + sms  # placeholder — replace with real translation
+
+    st.subheader("Translated (Tamil)")
+    st.write(translated)
+
+    # 2) Text to speech (Tamil) — gTTS example
+    tts = gTTS(text=translated, lang='ta')
+    audio_bytes = BytesIO()
+    tts.write_to_fp(audio_bytes)
+    audio_bytes.seek(0)
+    st.audio(audio_bytes, format='audio/mp3')
+
+else:
+    st.info("App opened without msg parameter.")
