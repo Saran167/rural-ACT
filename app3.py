@@ -117,13 +117,13 @@ if st.session_state.get("show_details", False):
         st.session_state["show_details"] = False
         # streamlit_sms.py
 import streamlit as st
-from googletrans import Translator
+from deep_translator import GoogleTranslator
 from gtts import gTTS
 import os
 import json
 
 # -------------------------------
-# Load Legal Rules from JSON
+# Legal Rules (Tamil + English)
 # -------------------------------
 legal_rules = {
     "bank": {
@@ -154,7 +154,7 @@ legal_rules = {
 }
 
 # -------------------------------
-# Helper: Detect Legal Issue
+# Detect Legal Issue
 # -------------------------------
 def detect_legal_issue(text):
     for keyword, rule in legal_rules.items():
@@ -163,7 +163,7 @@ def detect_legal_issue(text):
     return None
 
 # -------------------------------
-# Helper: Convert Text to Speech
+# Convert Text to Speech
 # -------------------------------
 def text_to_speech(text, lang_code):
     tts = gTTS(text=text, lang=lang_code)
@@ -172,12 +172,12 @@ def text_to_speech(text, lang_code):
     return filename
 
 # -------------------------------
-# Streamlit UI
+# Streamlit App UI
 # -------------------------------
 st.title("🌾 AI Legal-Aware Translator for Rural Users")
-st.markdown("*Translate English to Tamil, Listen in Voice, and Know the Law if Message is Illegal!*")
+st.markdown("*Translate English ➜ Tamil, Listen in Voice, and Learn About Laws for Illegal Messages!*")
 
-# User input
+# User Input
 user_input = st.text_area("✉️ Enter your English message:", placeholder="Type or paste your English message here...")
 
 if st.button("Translate & Analyze"):
@@ -185,11 +185,11 @@ if st.button("Translate & Analyze"):
         st.warning("Please enter a message.")
     else:
         try:
-            # Translation
-            translator = Translator()
-            translated = translator.translate(user_input, src='en', dest='ta')
-            tamil_text = translated.text
+            # Translation using deep-translator
+            translator = GoogleTranslator(source='en', target='ta')
+            tamil_text = translator.translate(user_input)
 
+            # Show Tamil Text
             st.subheader("🈶 Tamil Translation:")
             st.success(tamil_text)
 
@@ -197,18 +197,18 @@ if st.button("Translate & Analyze"):
             audio_file = text_to_speech(tamil_text, "ta")
             st.audio(audio_file)
 
-            # Feedback Section
+            # Feedback
             st.subheader("🗣️ User Feedback")
             feedback = st.radio("Did you understand the message?", ("Yes", "No"))
             if feedback == "No":
                 feedback_detail = st.selectbox("Which part was unclear?", ["Text", "Voice", "Both"])
                 st.info(f"Feedback recorded: {feedback_detail}")
 
-            # Legal Awareness Check
+            # Legal Awareness
             st.subheader("⚖️ Legal Awareness")
             legal_info = detect_legal_issue(user_input)
             if legal_info:
-                st.warning(f"⚠️ *Possible Legal Issue Found!*")
+                st.warning("⚠️ *Possible Legal Issue Detected!*")
                 st.write(f"*Law:* {legal_info['law']}")
                 st.write(f"*English:* {legal_info['description_en']}")
                 st.write(f"*தமிழ்:* {legal_info['description_ta']}")
@@ -223,8 +223,6 @@ if st.button("Translate & Analyze"):
             st.error("⚠️ Error occurred during translation or voice generation.")
             st.text(str(e))
 
-# -------------------------------
 # Footer
-# -------------------------------
 st.markdown("---")
 st.caption("Developed for rural & semi-literate users — integrates AI, Translation, Voice & Legal Awareness.")
