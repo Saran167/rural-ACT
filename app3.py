@@ -117,95 +117,114 @@ if st.session_state.get("show_details", False):
         st.session_state["show_details"] = False
         # streamlit_sms.py
 import streamlit as st
-from deep_translator import GoogleTranslator
+from googletrans import Translator
 from gtts import gTTS
 import os
+import json
 
-# ---------------------------
-# ⚖️ Scam detection keywords
-# ---------------------------
-SCAM_KEYWORDS = [
-    "otp", "reward", "lottery", "bank", "money", "click link",
-    "account", "loan", "prize", "gift", "password", "update", "offer"
-]
-
-def check_scam_message(message):
-    for word in SCAM_KEYWORDS:
-        if word.lower() in message.lower():
-            return True
-    return False
-
-# ---------------------------
-# 🧠 Tamil meaning dictionary
-# ---------------------------
-TAMIL_DICTIONARY = {
-    "fraudulent": "மோசடி செய்வது",
-    "beware": "எச்சரிக்கையாக இரு",
-    "scam": "மோசடி",
-    "loan": "கடன்",
-    "reward": "பரிசு",
-    "bank": "வங்கி",
-    "account": "கணக்கு",
-    "password": "கடவுச்சொல்",
-    "fake": "போலி",
-    "offer": "சலுகை"
+# -------------------------------
+# Load Legal Rules from JSON
+# -------------------------------
+legal_rules = {
+    "bank": {
+        "law": "IT Act Section 66D",
+        "description_en": "Online banking scams and fake KYC links are punishable under IT Act 66D.",
+        "description_ta": "ஆன்லைன் வங்கி மோசடிகள் மற்றும் போலி KYC இணைப்புகள் IT சட்டம் பிரிவு 66Dன் கீழ் தண்டிக்கப்படும்."
+    },
+    "loan": {
+        "law": "RBI Digital Loan Guidelines",
+        "description_en": "Harassment by loan apps can be reported to the RBI Ombudsman.",
+        "description_ta": "கடன் செயலிகளால் தொந்தரவு செய்யப்படின், RBI ஓம்புட்ஸ்மனிடம் புகார் செய்யலாம்."
+    },
+    "threat": {
+        "law": "IPC Section 503",
+        "description_en": "Threatening or blackmailing someone online is a criminal offense.",
+        "description_ta": "இணையத்தில் ஒருவரை மிரட்டுவது அல்லது பிளாக்மெயில் செய்வது குற்றமாகும்."
+    },
+    "photo": {
+        "law": "IT Act Section 67A",
+        "description_en": "Sharing or spreading obscene private content online is illegal.",
+        "description_ta": "அருவருப்பான தனிப்பட்ட உள்ளடக்கத்தை ஆன்லைனில் பகிர்வது சட்டவிரோதம்."
+    },
+    "fake": {
+        "law": "IT Act Section 66D",
+        "description_en": "Sending fake or misleading messages is punishable under IT Act Section 66D.",
+        "description_ta": "போலி அல்லது தவறான தகவலை அனுப்புவது IT சட்டம் பிரிவு 66Dன் கீழ் தண்டிக்கப்படும்."
+    }
 }
 
-def explain_difficult_words(msg):
-    explanations = []
-    words = msg.lower().split()
-    for word in words:
-        if word in TAMIL_DICTIONARY:
-            explanations.append(f"'{word}' means '{TAMIL_DICTIONARY[word]}' in Tamil.")
-    return explanations
+# -------------------------------
+# Helper: Detect Legal Issue
+# -------------------------------
+def detect_legal_issue(text):
+    for keyword, rule in legal_rules.items():
+        if keyword.lower() in text.lower():
+            return rule
+    return None
 
-# ---------------------------
-# 🌾 Streamlit UI
-# ---------------------------
-st.set_page_config(page_title="AI Legal-Aware Translator", page_icon="⚖️")
-st.title("⚖️ AI Legal-Aware English–Tamil Translator for Rural Users")
-st.write("This app helps rural users translate English messages into Tamil with voice support, scam detection (IT Act 66D), and simple Tamil word explanations.")
+# -------------------------------
+# Helper: Convert Text to Speech
+# -------------------------------
+def text_to_speech(text, lang_code):
+    tts = gTTS(text=text, lang=lang_code)
+    filename = "temp_audio.mp3"
+    tts.save(filename)
+    return filename
 
-msg = st.text_area("✍️ Enter English message or paragraph:")
+# -------------------------------
+# Streamlit UI
+# -------------------------------
+st.title("🌾 AI Legal-Aware Translator for Rural Users")
+st.markdown("*Translate English to Tamil, Listen in Voice, and Know the Law if Message is Illegal!*")
 
-if st.button("Translate"):
-    if msg.strip() == "":
-        st.warning("Please enter some English text.")
+# User input
+user_input = st.text_area("✉️ Enter your English message:", placeholder="Type or paste your English message here...")
+
+if st.button("Translate & Analyze"):
+    if user_input.strip() == "":
+        st.warning("Please enter a message.")
     else:
         try:
-            # Translate English → Tamil
-            tamil_text = GoogleTranslator(source='en', target='ta').translate(msg)
+            # Translation
+            translator = Translator()
+            translated = translator.translate(user_input, src='en', dest='ta')
+            tamil_text = translated.text
 
-            st.write("### 🈶 Tamil Translation:")
+            st.subheader("🈶 Tamil Translation:")
             st.success(tamil_text)
 
-            # Text-to-speech output
-            tts = gTTS(tamil_text, lang='ta')
-            tts.save("output.mp3")
-            st.audio("output.mp3")
+            # Tamil Voice
+            audio_file = text_to_speech(tamil_text, "ta")
+            st.audio(audio_file)
 
-            # Scam message warning
-            if check_scam_message(msg):
-                st.error("⚠️ இந்த செய்தி மோசடி (Scam) செய்தியாக இருக்கலாம்! IT Act 66D சட்டத்தின் கீழ் நடவடிக்கை எடுக்கலாம்.")
-                st.info("🛡️ Legal Section: Your Rights — Fake SMS Law (IT Act Section 66D).")
+            # Feedback Section
+            st.subheader("🗣️ User Feedback")
+            feedback = st.radio("Did you understand the message?", ("Yes", "No"))
+            if feedback == "No":
+                feedback_detail = st.selectbox("Which part was unclear?", ["Text", "Voice", "Both"])
+                st.info(f"Feedback recorded: {feedback_detail}")
 
-            # Smart meaning assistant
-            explanations = explain_difficult_words(msg)
-            if explanations:
-                st.info("### 🧠 Smart Meaning Assistant:")
-                for exp in explanations:
-                    st.write(exp)
+            # Legal Awareness Check
+            st.subheader("⚖️ Legal Awareness")
+            legal_info = detect_legal_issue(user_input)
+            if legal_info:
+                st.warning(f"⚠️ *Possible Legal Issue Found!*")
+                st.write(f"*Law:* {legal_info['law']}")
+                st.write(f"*English:* {legal_info['description_en']}")
+                st.write(f"*தமிழ்:* {legal_info['description_ta']}")
 
-                # Optional Tamil voice for meanings
-                meaning_text = " ".join([TAMIL_DICTIONARY.get(w.strip("'"), "") for w in msg.lower().split() if w in TAMIL_DICTIONARY])
-                if meaning_text:
-                    tts2 = gTTS(meaning_text, lang='ta')
-                    tts2.save("meaning.mp3")
-                    st.audio("meaning.mp3")
+                # Tamil voice for legal info
+                law_audio = text_to_speech(legal_info["description_ta"], "ta")
+                st.audio(law_audio)
+            else:
+                st.info("✅ No legal issue detected in this message.")
 
         except Exception as e:
-            st.error("An error occurred while translating or generating voice. Please try again.")
-            st.write("Error details:", e)
+            st.error("⚠️ Error occurred during translation or voice generation.")
+            st.text(str(e))
 
+# -------------------------------
+# Footer
+# -------------------------------
 st.markdown("---")
-st.caption("🧩 Developed for rural and semi-literate users – combines AI translation, Tamil voice, and legal awareness.")
+st.caption("Developed for rural & semi-literate users — integrates AI, Translation, Voice & Legal Awareness.")
