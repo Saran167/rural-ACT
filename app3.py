@@ -117,12 +117,16 @@ if st.session_state.get("show_details", False):
         st.session_state["show_details"] = False
         # streamlit_sms.py
 import streamlit as st
-from googletrans import Translator
+from deep_translator import GoogleTranslator
 from gtts import gTTS
 import os
+
+# ---------------------------
+# ⚖️ Scam detection keywords
+# ---------------------------
 SCAM_KEYWORDS = [
-    "otp", "reward", "lottery", "bank", "money", "click link", 
-    "account", "loan", "prize", "gift", "password"
+    "otp", "reward", "lottery", "bank", "money", "click link",
+    "account", "loan", "prize", "gift", "password", "update", "offer"
 ]
 
 def check_scam_message(message):
@@ -130,33 +134,21 @@ def check_scam_message(message):
         if word.lower() in message.lower():
             return True
     return False
-    st.title("AI Legal-Aware Translator 🧠⚖️")
-msg = st.text_area("Enter English message or paragraph:")
 
-if st.button("Translate"):
-    translator = Translator()
-    translated = translator.translate(msg, src='en', dest='ta')
-    tamil_text = translated.text
-
-    st.write("### 🈶 Tamil Translation:")
-    st.success(tamil_text)
-
-    # Text-to-speech output
-    tts = gTTS(tamil_text, lang='ta')
-    tts.save("output.mp3")
-    st.audio("output.mp3")
-
-    # 🔔 Check for scam words
-    if check_scam_message(msg):
-        st.error("⚠️ இந்த செய்தி மோசடி (Scam) செய்தியாக இருக்கலாம்! IT Act 66D சட்டத்தின் கீழ் நடவடிக்கை எடுக்கலாம்.")
-        TAMIL_DICTIONARY = {
+# ---------------------------
+# 🧠 Tamil meaning dictionary
+# ---------------------------
+TAMIL_DICTIONARY = {
     "fraudulent": "மோசடி செய்வது",
     "beware": "எச்சரிக்கையாக இரு",
     "scam": "மோசடி",
     "loan": "கடன்",
     "reward": "பரிசு",
     "bank": "வங்கி",
-    "account": "கணக்கு"
+    "account": "கணக்கு",
+    "password": "கடவுச்சொல்",
+    "fake": "போலி",
+    "offer": "சலுகை"
 }
 
 def explain_difficult_words(msg):
@@ -166,15 +158,54 @@ def explain_difficult_words(msg):
         if word in TAMIL_DICTIONARY:
             explanations.append(f"'{word}' means '{TAMIL_DICTIONARY[word]}' in Tamil.")
     return explanations
-    # 🧠 Smart Meaning Assistant
-explanations = explain_difficult_words(msg)
-if explanations:
-    st.info("### Word Meanings (Tamil Explanation):")
-    for exp in explanations:
-        st.write(exp)
 
+# ---------------------------
+# 🌾 Streamlit UI
+# ---------------------------
+st.set_page_config(page_title="AI Legal-Aware Translator", page_icon="⚖️")
+st.title("⚖️ AI Legal-Aware English–Tamil Translator for Rural Users")
+st.write("This app helps rural users translate English messages into Tamil with voice support, scam detection (IT Act 66D), and simple Tamil word explanations.")
 
+msg = st.text_area("✍️ Enter English message or paragraph:")
 
+if st.button("Translate"):
+    if msg.strip() == "":
+        st.warning("Please enter some English text.")
+    else:
+        try:
+            # Translate English → Tamil
+            tamil_text = GoogleTranslator(source='en', target='ta').translate(msg)
 
+            st.write("### 🈶 Tamil Translation:")
+            st.success(tamil_text)
 
-    
+            # Text-to-speech output
+            tts = gTTS(tamil_text, lang='ta')
+            tts.save("output.mp3")
+            st.audio("output.mp3")
+
+            # Scam message warning
+            if check_scam_message(msg):
+                st.error("⚠️ இந்த செய்தி மோசடி (Scam) செய்தியாக இருக்கலாம்! IT Act 66D சட்டத்தின் கீழ் நடவடிக்கை எடுக்கலாம்.")
+                st.info("🛡️ Legal Section: Your Rights — Fake SMS Law (IT Act Section 66D).")
+
+            # Smart meaning assistant
+            explanations = explain_difficult_words(msg)
+            if explanations:
+                st.info("### 🧠 Smart Meaning Assistant:")
+                for exp in explanations:
+                    st.write(exp)
+
+                # Optional Tamil voice for meanings
+                meaning_text = " ".join([TAMIL_DICTIONARY.get(w.strip("'"), "") for w in msg.lower().split() if w in TAMIL_DICTIONARY])
+                if meaning_text:
+                    tts2 = gTTS(meaning_text, lang='ta')
+                    tts2.save("meaning.mp3")
+                    st.audio("meaning.mp3")
+
+        except Exception as e:
+            st.error("An error occurred while translating or generating voice. Please try again.")
+            st.write("Error details:", e)
+
+st.markdown("---")
+st.caption("🧩 Developed for rural and semi-literate users – combines AI translation, Tamil voice, and legal awareness.")
