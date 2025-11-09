@@ -1,5 +1,4 @@
-# app.py
-# English input -> Tamil translation + Tamil voice -> Tamil legal awareness -> Feedback (icons) -> Save CSV
+# app.py — Fixed version (robust feedback CSV appending)
 import streamlit as st
 from deep_translator import GoogleTranslator
 from gtts import gTTS
@@ -13,22 +12,45 @@ import os
 # Page config
 # -------------------------
 st.set_page_config(page_title="Tamil Legal Awareness", page_icon="⚖️", layout="centered")
-st.title("🛡️ Tamil Legal-Aware Translator (Input)")
+st.title("🛡️ Tamil Legal-Aware Translator (Single Input)")
 st.caption("Enter English text → Tamil translation + Tamil voice → Legal awareness (Tamil) → Feedback")
 
 # -------------------------
-# Feedback CSV
+# Feedback CSV path & helper
 # -------------------------
 FEEDBACK_CSV = "user_feedback.csv"
-if not os.path.exists(FEEDBACK_CSV):
-    pd.DataFrame(columns=[
-        "timestamp", "input_english", "tamil_translation", "detected_sections",
-        "feedback", "feedback_detail"
-    ]).to_csv(FEEDBACK_CSV, index=False)
+FEEDBACK_COLUMNS = [
+    "timestamp", "input_english", "tamil_translation", "detected_sections",
+    "feedback", "feedback_detail"
+]
+
+def ensure_feedback_csv():
+    """Ensure CSV exists with correct header."""
+    if not os.path.exists(FEEDBACK_CSV):
+        pd.DataFrame(columns=FEEDBACK_COLUMNS).to_csv(FEEDBACK_CSV, index=False)
+
+def append_feedback_row(row_dict):
+    """
+    Append a feedback row (dict) reliably.
+    row_dict keys should be subset of FEEDBACK_COLUMNS.
+    """
+    ensure_feedback_csv()
+    try:
+        df = pd.read_csv(FEEDBACK_CSV)
+    except Exception:
+        # If csv corrupt or unreadable, recreate
+        df = pd.DataFrame(columns=FEEDBACK_COLUMNS)
+    # build a full-row dict with all columns (fill missing with "")
+    full_row = {col: row_dict.get(col, "") for col in FEEDBACK_COLUMNS}
+    new_df = pd.DataFrame([full_row])
+    df = pd.concat([df, new_df], ignore_index=True)
+    df.to_csv(FEEDBACK_CSV, index=False)
+
+# ensure csv on start
+ensure_feedback_csv()
 
 # -------------------------
 # Legal DB (Tamil focused, expanded)
-# Add or extend entries as needed
 # -------------------------
 LEGAL_DB = {
     "66C/66D": {
@@ -36,13 +58,13 @@ LEGAL_DB = {
         "ta_explanation": (
             "66C: பிறரின் அடையாளத்தை (password, OTP, account) திருடி பயன்படுத்துவது - அடையாள திருட்டு.\n"
             "66D: இணையத்தில் வேறொரு நபராக நடித்து மோசடி செய்வது (phishing, fake bank links, OTP கேட்பு).\n\n"
-            "எடுத்துக் கூடு: பேங்கி̆ங் OTP கேட்டு பணம் எடுத்தல், போலி KYC/வங்கி இணைப்புகள்.\n\n"
+            "எடுத்துக் கூடு: வங்கி OTP கேட்டு பணம் எடுத்தல், போலி KYC/வங்கி இணைப்புகள்.\n\n"
             "செய்ய வேண்டியது: OTP/Password ஒருவரிடம் பகிர வேண்டாம். உடனே வங்கி மற்றும் சைபர் போலீசில் புகார் செய்யவும்."
         ),
         "ta_punishment": "தண்டனை: 3 ஆண்டுகள் வரை சிறை மற்றும்/அல்லது அபராதம் (சட்டப்படி).",
         "keywords": [
             "otp","one time password","password","pwd","login","account","verify link","verify your account",
-            "phish","phishing","fake link","bank link","k y c","kyc","bank notice","hacked","hack",
+            "phish","phishing","fake link","bank link","kyc","bank notice","hacked","hack",
             "ஓடிபி","கடவுச்சொல்","கணக்கு","ஹேக்","இணைப்பு"
         ]
     },
@@ -64,7 +86,7 @@ LEGAL_DB = {
         "section": "IPC பிரிவு 406",
         "ta_explanation": (
             "நம்பிக்கையின்மையால் சொத்து/பணத்தை தவறாக பயன்படுத்துதல் (Criminal breach of trust).\n\n"
-            "எடுத்துக்காட்டு: கடன் எடுத்தவர் பணத்தை திருப்பிச் செய்யவில்லை அல்லது ஒப்படைக்கப்பட்ட பொருட்களை திருடிவிடுதல்.\n\n"
+            "எடுத்துக்காட்டு: கடன் எடுத்தவர் பணம் திருப்பிச் செய்யவில்லை அல்லது ஒப்படைக்கப்பட்ட பொருட்களை திருடிவிடுதல்.\n\n"
             "செய்ய வேண்டியது: எழுத்துப்பூர்வ உடன்படிக்கைகள் வைத்திருங்கள்; ஆதாரங்கள் சேகரிக்கவும்; போலீஸ் அல்லது சட்ட ஆலோசனை பெறவும்."
         ),
         "ta_punishment": "தண்டனை: 3 ஆண்டுகள் வரை சிறை அல்லது அபராதம் அல்லது இரண்டும்.",
@@ -110,7 +132,6 @@ def translate_to_tamil(text):
     try:
         return translator.translate(text)
     except Exception:
-        # fallback: return empty or input
         return ""
 
 def tts_tamil_bytes(tamil_text):
@@ -123,7 +144,7 @@ def tts_tamil_bytes(tamil_text):
         return None
 
 # -------------------------
-# Robust detection
+# Detection helper
 # -------------------------
 def detect_sections(english_text):
     t = english_text.lower()
@@ -145,7 +166,7 @@ def detect_sections(english_text):
     return found
 
 # -------------------------
-# Session state for feedback flow
+# Session state and UI
 # -------------------------
 if "show_detail_buttons" not in st.session_state:
     st.session_state.show_detail_buttons = False
@@ -156,9 +177,6 @@ if "last_translation" not in st.session_state:
 if "detected_keys" not in st.session_state:
     st.session_state.detected_keys = []
 
-# -------------------------
-# Input UI
-# -------------------------
 st.markdown("#### ➤ Enter **one English sentence** (type or paste SMS/notification):")
 english_input = st.text_area("", height=110, key="input_box")
 
@@ -166,32 +184,26 @@ if st.button("Translate → Tamil & Analyze"):
     if not english_input.strip():
         st.warning("Please enter some English text.")
     else:
-        # Translate
         tamil_text = translate_to_tamil(english_input)
         if not tamil_text:
             st.error("Translation failed. Check network or try again.")
             tamil_text = ""
 
-        # Show Tamil translation
         st.subheader("🈶 தமிழில் மொழிபெயர்ப்பு:")
         st.success(tamil_text)
 
-        # Play Tamil voice
         audio_bytes = tts_tamil_bytes(tamil_text)
         if audio_bytes:
             st.audio(audio_bytes, format="audio/mp3")
         else:
             st.info("Audio not available (TTS issue).")
 
-        # Save last state
         st.session_state.last_input = english_input
         st.session_state.last_translation = tamil_text
 
-        # Detect legal sections
         matches = detect_sections(english_input)
         st.session_state.detected_keys = [k for k, _ in matches]
 
-        # Display legal awareness (Tamil only)
         st.divider()
         st.subheader("⚖️ சட்ட விழிப்புணர்வு (தமிழில்):")
         if matches:
@@ -203,81 +215,71 @@ if st.button("Translate → Tamil & Analyze"):
         else:
             st.info("✅ இந்த செய்திக்கு தொடர்புடைய சட்டப் பகுதி கண்டறியப்படவில்லை.")
 
-        # Reset feedback detail buttons flag and show feedback area
         st.session_state.show_detail_buttons = False
 
-# -------------------------
-# Feedback UI (always shown after translation attempt)
-# -------------------------
+# Feedback UI
 st.divider()
 st.subheader("🗣️ பயனர் கருத்து (User Feedback)")
 
-# Show feedback only if there is a last translation saved
 if st.session_state.last_input:
     col1, col2 = st.columns([1,1])
     with col1:
         if st.button("✅ Understand"):
-            # Save positive feedback
-            df = pd.read_csv(FEEDBACK_CSV)
-            df.loc[len(df)] = [
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                st.session_state.last_input,
-                st.session_state.last_translation,
-                ",".join(st.session_state.detected_keys) if st.session_state.detected_keys else "",
-                "Understand",
-                ""
-            ]
-            df.to_csv(FEEDBACK_CSV, index=False)
+            # append feedback using helper
+            row = {
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "input_english": st.session_state.last_input,
+                "tamil_translation": st.session_state.last_translation,
+                "detected_sections": ",".join(st.session_state.detected_keys) if st.session_state.detected_keys else "",
+                "feedback": "Understand",
+                "feedback_detail": ""
+            }
+            append_feedback_row(row)
             st.success("✅ Feedback saved successfully.")
     with col2:
         if st.button("❌ Not Understand"):
-            # show detail choices
             st.session_state.show_detail_buttons = True
 
-    # if user clicked Not Understand, show the three icon buttons (no navigation away)
     if st.session_state.show_detail_buttons:
         st.markdown("### 😕 எது புரியவில்லை? (What was not clear?)")
         d1, d2, d3 = st.columns(3)
         with d1:
             if st.button("📝 Text"):
-                df = pd.read_csv(FEEDBACK_CSV)
-                df.loc[len(df)] = [
-                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    st.session_state.last_input,
-                    st.session_state.last_translation,
-                    ",".join(st.session_state.detected_keys) if st.session_state.detected_keys else "",
-                    "Not Understand",
-                    "Text"
-                ]
-                df.to_csv(FEEDBACK_CSV, index=False)
+                row = {
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "input_english": st.session_state.last_input,
+                    "tamil_translation": st.session_state.last_translation,
+                    "detected_sections": ",".join(st.session_state.detected_keys) if st.session_state.detected_keys else "",
+                    "feedback": "Not Understand",
+                    "feedback_detail": "Text"
+                }
+                append_feedback_row(row)
                 st.success("✅ Feedback saved successfully (Text).")
                 st.session_state.show_detail_buttons = False
         with d2:
             if st.button("🔊 Voice"):
-                df = pd.read_csv(FEEDBACK_CSV)
-                df.loc[len(df)] = [
-                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    st.session_state.last_input,
-                    st.session_state.last_translation,
-                    ",".join(st.session_state.detected_keys) if st.session_state.detected_keys else "",
-                    "Not Understand",
-                    "Voice"
-                ]
-                df.to_csv(FEEDBACK_CSV, index=False)
+                row = {
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "input_english": st.session_state.last_input,
+                    "tamil_translation": st.session_state.last_translation,
+                    "detected_sections": ",".join(st.session_state.detected_keys) if st.session_state.detected_keys else "",
+                    "feedback": "Not Understand",
+                    "feedback_detail": "Voice"
+                }
+                append_feedback_row(row)
                 st.success("✅ Feedback saved successfully (Voice).")
                 st.session_state.show_detail_buttons = False
         with d3:
             if st.button("🔁 Both"):
-                df = pd.read_csv(FEEDBACK_CSV)
-                df.loc[len(df)] = [
-                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    st.session_state.last_input,
-                    st.session_state.last_translation,
-                    ",".join(st.session_state.detected_keys) if st.session_state.detected_keys else "",
-                    "Not Understand",
-                    "Both"
-                ]
-                df.to_csv(FEEDBACK_CSV, index=False)
+                row = {
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "input_english": st.session_state.last_input,
+                    "tamil_translation": st.session_state.last_translation,
+                    "detected_sections": ",".join(st.session_state.detected_keys) if st.session_state.detected_keys else "",
+                    "feedback": "Not Understand",
+                    "feedback_detail": "Both"
+                }
+                append_feedback_row(row)
                 st.success("✅ Feedback saved successfully (Both).")
                 st.session_state.show_detail_buttons = False
 else:
@@ -285,6 +287,7 @@ else:
 
 st.markdown("---")
 st.caption("Feedback stored locally in user_feedback.csv — you can download it from your Streamlit Cloud app files.")
+
 
 
 
