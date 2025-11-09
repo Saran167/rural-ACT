@@ -1,11 +1,12 @@
 import streamlit as st
-from googletrans import Translator
+from deep_translator import GoogleTranslator
 from gtts import gTTS
 import os
 
 st.set_page_config(page_title="Legal Awareness Chat", layout="centered")
 
-translator = Translator()
+# Translator setup using deep_translator
+translator = GoogleTranslator(source='en', target='ta')
 
 # Header
 st.markdown("<h1 style='text-align:center;color:#004080;'>🛡️ Legal Awareness Chat Assistant</h1>", unsafe_allow_html=True)
@@ -14,7 +15,7 @@ st.markdown("<h5 style='text-align:center;'>Understand your rights and Indian la
 # User Input
 user_input = st.text_input("Enter your problem or issue (in English):", "")
 
-# Legal database (expanded and more descriptive)
+# Legal database (expanded)
 legal_db = {
     "harassment": {
         "section": "Section 354, IPC & Section 509 IPC",
@@ -65,9 +66,8 @@ if user_input:
     for keyword, law in legal_db.items():
         if keyword.lower() in user_input.lower():
             found = True
-
             st.subheader("📘 Legal Awareness (in Tamil):")
-            tamil_text = translator.translate(law["details"], src="en", dest="ta").text
+            tamil_text = translator.translate(law["details"])
             st.write(tamil_text)
 
             tts = gTTS(text=tamil_text, lang='ta')
@@ -91,11 +91,7 @@ if feedback == "Yes":
 
 elif feedback == "Not Understand":
     st.markdown("### Choose how you want to receive help:")
-    feedback_type = st.radio(
-        "Select one option:",
-        ["📝 Text", "🔊 Voice", "🎧 Both"],
-        index=None
-    )
+    feedback_type = st.radio("Select one option:", ["📝 Text", "🔊 Voice", "🎧 Both"], index=None)
 
     if feedback_type:
         st.success("✅ Feedback saved successfully.")
