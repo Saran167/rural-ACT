@@ -1,5 +1,5 @@
 # app.py
-# Single English input -> Tamil translation + Tamil voice -> Tamil legal awareness -> Feedback (icons) -> Save CSV
+# English input -> Tamil translation + Tamil voice -> Tamil legal awareness -> Feedback (icons) -> Save CSV
 import streamlit as st
 from deep_translator import GoogleTranslator
 from gtts import gTTS
@@ -13,7 +13,7 @@ import os
 # Page config
 # -------------------------
 st.set_page_config(page_title="Tamil Legal Awareness", page_icon="⚖️", layout="centered")
-st.title("🛡️ Tamil Legal-Aware Translator (Single Input)")
+st.title("🛡️ Tamil Legal-Aware Translator (Input)")
 st.caption("Enter English text → Tamil translation + Tamil voice → Legal awareness (Tamil) → Feedback")
 
 # -------------------------
