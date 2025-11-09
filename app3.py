@@ -226,3 +226,55 @@ if st.button("Translate & Analyze"):
 # Footer
 st.markdown("---")
 st.caption("Developed for rural & semi-literate users — integrates AI, Translation, Voice & Legal Awareness.")
+section_66 = {
+    "section": "IT Act Section 66 / 66C – Cyber Offences & Identity Theft",
+    "tamil_explanation": "இணையம் அல்லது கணினி மூலம் பிறரின் தரவை திருடுவது, கடவுச்சொல்லை பயன்படுத்துவது, அல்லது அனுமதியின்றி கணக்கில் நுழைவது குற்றமாகும்.",
+    "tamil_punishment": "மூன்று ஆண்டு வரை சிறை அல்லது ₹1 லட்சம் அபராதம் அல்லது இரண்டும்.",
+    "keywords": [
+        # hacking / access
+        "hack","hacked","hacking","hacker","unauthorized access","bypass","breach",
+        "data theft","data stolen","steal data","delete data","erase file",
+        # identity / password / login
+        "password","otp","account","login","username","id","identity","impersonate",
+        "fake profile","fake account","clone account","phishing","spoof","malware",
+        # digital signatures / devices
+        "digital signature","certificate misuse","keylogger","virus","trojan","ransomware",
+        "cyber attack","cyber crime","online theft","privacy leak","database leak",
+        # Tamil/English mix possibilities
+        "ஹேக்","பாஸ்வேர்டு","ஆன்லைன் கணக்கு","ஓடிபி","டேட்டா திருடல்","அணுகல்"
+    ]
+}
+section_420 = {
+    "section": "IPC Section 420 – மோசடி மற்றும் ஏமாற்றல்",
+    "tamil_explanation": "பிறரை ஏமாற்றி பணம் அல்லது நன்மை பெறுவது குற்றமாகும்.",
+    "tamil_punishment": "ஏழு ஆண்டு வரை சிறை மற்றும் அபராதம்.",
+    "keywords": [
+        # general cheating/fraud
+        "cheat","cheated","cheating","fraud","fraudulent","scam","scammed","scamming",
+        "fake","false promise","deceive","dishonest","trick","dupe","swindle","con",
+        "forged","forgery","counterfeit","fake bill","duplicate",
+        # money / finance
+        "money","cash","payment","loan","transaction","transfer","upi","bank","credit card",
+        "debit card","atm","withdraw","deposit","investment","crypto","bitcoin","token",
+        # online scams
+        "online scam","phishing","lottery","prize","gift card","job offer","loan app",
+        "subscription fraud","shopping fraud","delivery scam","dating scam",
+        # Tamil/English mix
+        "ஏமாற்று","மோசடி","பணம்","வாய்ப்பு","ஆன்லைன் மோசடி","லாட்டரி","வேலை வாய்ப்பு"
+    ]
+}
+legal_rules = [section_66, section_420]
+
+def detect_legal_section(text):
+    text_l = text.lower()
+    for rule in legal_rules:
+        for kw in rule["keywords"]:
+            if kw.lower() in text_l:
+                return rule
+    return None
+law = detect_legal_section(english_text)
+if law:
+    st.subheader(f"⚖️ {law['section']}")
+    st.write(f"**விளக்கம்:** {law['tamil_explanation']}")
+    st.write(f"**தண்டனை:** {law['tamil_punishment']}")
+
