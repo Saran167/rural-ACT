@@ -1,122 +1,99 @@
 import streamlit as st
-from googletrans import Translator
-from gtts import gTTS
-import os
+from deep_translator import GoogleTranslator
+import pyttsx3
 
-# ---------------------------
-# Translator & TTS
-# ---------------------------
-translator = Translator()
-
-def translate_to_tamil(text):
-    result = translator.translate(text, src='en', dest='ta')
-    return result.text
-
-def play_tamil_audio(text):
-    tts = gTTS(text, lang='ta')
-    tts.save("temp.mp3")
-    st.audio("temp.mp3", format="audio/mp3")
-    os.remove("temp.mp3")
-
-# ---------------------------
-# Legal Awareness Data
-# ---------------------------
-legal_sections = {
-    "66": {
-        "keywords": ["hacked", "cyber", "security", "account", "malware", "data", "virus"],
-        "english": """Section 66 – Computer-related offences.
-Includes hacking, data theft, or unauthorized access.
-Punishment: Imprisonment up to 3 years or fine up to ₹5 lakhs or both.""",
-        "tamil": """பிரிவு 66 – கணினி குற்றங்கள்.
-ஹேக்கிங், தரவு திருட்டு அல்லது அனுமதியில்லா அணுகல் ஆகியவை இதில் அடங்கும்.
-தண்டனை: அதிகபட்சம் 3 ஆண்டுகள் சிறை அல்லது ₹5 லட்சம் அபராதம் அல்லது இரண்டும்."""
+# ---------- Legal Awareness Data ----------
+legal_data = {
+    "harassed": {
+        "section": "Section 354D, IPC",
+        "law": "Stalking or harassment of a woman by any means, including online harassment, is punishable under Section 354D of IPC.",
+        "punishment": "Up to 3 years imprisonment for the first conviction, and up to 5 years for repeat offences.",
+        "rule": "Protects individuals, especially women, from unwanted contact or following either physically or online.",
+        "tamil": "ஒரு பெண்ணை துரத்துதல் அல்லது தொந்தரவு செய்வது குற்றமாகும். இது இந்திய தண்டனைச் சட்டம் பிரிவு 354D இன் கீழ் தண்டனைக்குரியது."
     },
-    "66D": {
-        "keywords": ["cheated", "fraud", "money", "bank", "loan", "otp", "kyc", "scam"],
-        "english": """Section 66D – Cheating by personation using computer resources.
-Covers online scams, fake calls, OTP or bank fraud.
-Punishment: Up to 3 years imprisonment and fine up to ₹1 lakh.""",
-        "tamil": """பிரிவு 66D – கணினி வழியாக போலி வேடத்தில் ஏமாற்றுதல்.
-ஆன்லைன் மோசடிகள், போலி அழைப்புகள், OTP அல்லது வங்கி மோசடிகள் இதில் அடங்கும்.
-தண்டனை: அதிகபட்சம் 3 ஆண்டுகள் சிறை மற்றும் ₹1 லட்சம் அபராதம்."""
+    "money": {
+        "section": "Section 420, IPC",
+        "law": "Cheating and dishonestly inducing delivery of property is punishable under Section 420 of IPC.",
+        "punishment": "Up to 7 years imprisonment and fine.",
+        "rule": "Covers cheating related to money, property, or online transactions.",
+        "tamil": "பணம் அல்லது சொத்து தொடர்பான ஏமாற்றுதல் குற்றமாகும். இது பிரிவு 420 இன் கீழ் 7 ஆண்டுகள் சிறைத் தண்டனையுடன் வருகிறது."
     },
-    "354A": {
-        "keywords": ["harassed", "molest", "sexual", "touch", "woman", "girl"],
-        "english": """Section 354A – Sexual harassment of women.
-Covers verbal or physical sexual harassment.
-Punishment: Up to 3 years imprisonment or fine or both.""",
-        "tamil": """பிரிவு 354A – பெண்களை பாலியல் துன்புறுத்தல்.
-உடல் அல்லது வாய்வழி பாலியல் தொந்தரவு.
-தண்டனை: அதிகபட்சம் 3 ஆண்டுகள் சிறை அல்லது அபராதம் அல்லது இரண்டும்."""
+    "bank": {
+        "section": "Section 66D, IT Act",
+        "law": "Cheating by personation using computer resources is punishable under Section 66D of the IT Act.",
+        "punishment": "Up to 3 years imprisonment and fine up to ₹1 lakh.",
+        "rule": "Covers fake bank calls, online scams, and phishing.",
+        "tamil": "வங்கிக் கணக்கு அல்லது ஆன்லைன் ஏமாற்றம் செய்வது தகவல் தொழில்நுட்பச் சட்டம் பிரிவு 66D இன் கீழ் தண்டனைக்குரியது."
     },
-    "420": {
-        "keywords": ["money", "fraud", "loan", "cheat", "property", "fake", "document"],
-        "english": """Section 420 – Cheating and dishonestly inducing delivery of property.
-Covers fraud, fake documents, and dishonest transactions.
-Punishment: Up to 7 years imprisonment and fine.""",
-        "tamil": """பிரிவு 420 – ஏமாற்றம் மற்றும் சொத்து பெறுதல்.
-மோசடி, போலி ஆவணங்கள் அல்லது ஏமாற்றமான பரிவர்த்தனைகள்.
-தண்டனை: அதிகபட்சம் 7 ஆண்டுகள் சிறை மற்றும் அபராதம்."""
+    "cyber": {
+        "section": "Section 66, IT Act",
+        "law": "Hacking or unauthorized access to a computer system is punishable under Section 66 of IT Act.",
+        "punishment": "Up to 3 years imprisonment or fine up to ₹5 lakh or both.",
+        "rule": "Protects systems from unauthorized access or data theft.",
+        "tamil": "அங்கீகாரம் இல்லாமல் கணினி அமைப்பில் நுழைவு குற்றமாகும் (பிரிவு 66)."
     },
-    "67": {
-        "keywords": ["photo", "video", "nude", "share", "internet", "obscene", "post"],
-        "english": """Section 67 – Publishing or transmitting obscene material online.
-Covers sharing obscene images or videos.
-Punishment: Up to 5 years imprisonment and fine up to ₹10 lakhs.""",
-        "tamil": """பிரிவு 67 – இணையத்தில் அசிங்கமான உள்ளடக்கங்களை பகிர்வு.
-அசிங்கமான புகைப்படங்கள் அல்லது வீடியோக்கள் பகிர்வது இதில் அடங்கும்.
-தண்டனை: அதிகபட்சம் 5 ஆண்டுகள் சிறை மற்றும் ₹10 லட்சம் அபராதம்."""
+    "threat": {
+        "section": "Section 503, IPC",
+        "law": "Criminal intimidation by threatening another person is punishable under Section 503 of IPC.",
+        "punishment": "Up to 2 years imprisonment, or fine, or both.",
+        "rule": "Protects individuals from verbal or written threats.",
+        "tamil": "மிரட்டல் அல்லது அச்சுறுத்தல் செயல் குற்றமாகும் (பிரிவு 503)."
     }
 }
 
-# ---------------------------
-# Streamlit UI
-# ---------------------------
-st.set_page_config(page_title="Legal Awareness Translator", layout="centered")
-st.title("🛡️ Legal Awareness Translator – English ➜ Tamil")
+# ---------- Streamlit UI ----------
+st.title("🛡️ Rural Legal Awareness Chatbot (English ➜ Tamil)")
+st.markdown("### Type your message below (in English):")
 
-user_input = st.text_area("Enter your text in English:", placeholder="Type or paste your message here...")
+# Input Box
+user_input = st.text_area("Enter your text in English:")
 
-if st.button("Translate & Analyze"):
-    if user_input.strip():
-        # Tamil translation
-        tamil_text = translate_to_tamil(user_input)
-        st.subheader("🈶 Tamil Translation:")
-        st.write(tamil_text)
+if st.button("Submit"):
+    if user_input.strip() == "":
+        st.warning("Please enter a message.")
+    else:
+        # ---------- Step 1: Translate English → Tamil ----------
+        tamil_translation = GoogleTranslator(source='en', target='ta').translate(user_input)
+        st.subheader("🈯 Tamil Translation:")
+        st.write(tamil_translation)
 
-        # Tamil Voice
-        play_tamil_audio(tamil_text)
+        # ---------- Step 2: Tamil Voice ----------
+        engine = pyttsx3.init()
+        engine.save_to_file(tamil_translation, "tamil_voice.mp3")
+        engine.runAndWait()
+        audio_file = open("tamil_voice.mp3", "rb")
+        st.audio(audio_file.read(), format="audio/mp3")
 
-        # Detect Legal Section
-        matched_sections = []
-        for sec, info in legal_sections.items():
-            for kw in info["keywords"]:
-                if kw.lower() in user_input.lower():
-                    matched_sections.append(sec)
-                    break
+        # ---------- Step 3: Legal Awareness ----------
+        found_section = None
+        for key, value in legal_data.items():
+            if key in user_input.lower():
+                found_section = value
+                break
 
         st.subheader("⚖️ Legal Awareness:")
-        if matched_sections:
-            for sec in matched_sections:
-                info = legal_sections[sec]
-                lang_choice = st.radio(f"View Section {sec} Details:", ["Tamil", "English"], key=sec)
-                if lang_choice == "Tamil":
-                    st.info(info["tamil"])
-                else:
-                    st.info(info["english"])
+        if found_section:
+            # Language toggle
+            lang_option = st.radio("Select Language:", ("Tamil", "English"))
+            if lang_option == "Tamil":
+                st.markdown(f"**பிரிவு:** {found_section['section']}")
+                st.markdown(f"**சட்டம்:** {found_section['tamil']}")
+                st.markdown(f"**தண்டனை:** {found_section['punishment']}")
+            else:
+                st.markdown(f"**Section:** {found_section['section']}")
+                st.markdown(f"**Law:** {found_section['law']}")
+                st.markdown(f"**Punishment:** {found_section['punishment']}")
+                st.markdown(f"**Rule:** {found_section['rule']}")
         else:
-            st.warning("No specific legal section found for this text.")
+            st.info("No specific law found for this sentence.")
 
-        # Feedback
-        st.subheader("🗣️ User Feedback:")
-        fb = st.radio("Did you understand the translation?", ["Understand", "Not Understand"], horizontal=True)
-        if fb == "Not Understand":
-            fb_type = st.radio("Which part was unclear?", ["Voice", "Text", "Both"], horizontal=True)
-            st.success(f"✅ Feedback saved: Not understood - {fb_type}")
-        else:
-            st.success("✅ Glad you understood!")
-    else:
-        st.warning("Please enter text first.")
+        # ---------- Step 4: User Feedback ----------
+        st.subheader("🗣️ User Feedback")
+        feedback = st.radio("Do you understand the information?", ["Understand", "Not Understand"])
+        if feedback == "Not Understand":
+            reason = st.radio("Which part you didn’t understand?", ["Voice", "Text", "Both"])
+            st.success(f"✅ Feedback saved: You didn't understand the {reason.lower()}. Future improvements will address this.")
+
 
 
 
