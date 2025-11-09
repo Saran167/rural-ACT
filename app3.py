@@ -1,6 +1,7 @@
 import streamlit as st
 from deep_translator import GoogleTranslator
-import pyttsx3
+from gtts import gTTS
+import os
 
 # ---------- Legal Awareness Data ----------
 legal_data = {
@@ -45,7 +46,6 @@ legal_data = {
 st.title("🛡️ Rural Legal Awareness Chatbot (English ➜ Tamil)")
 st.markdown("### Type your message below (in English):")
 
-# Input Box
 user_input = st.text_area("Enter your text in English:")
 
 if st.button("Submit"):
@@ -57,12 +57,13 @@ if st.button("Submit"):
         st.subheader("🈯 Tamil Translation:")
         st.write(tamil_translation)
 
-        # ---------- Step 2: Tamil Voice ----------
-        engine = pyttsx3.init()
-        engine.save_to_file(tamil_translation, "tamil_voice.mp3")
-        engine.runAndWait()
+        # ---------- Step 2: Tamil Voice (using gTTS) ----------
+        tts = gTTS(tamil_translation, lang='ta')
+        tts.save("tamil_voice.mp3")
         audio_file = open("tamil_voice.mp3", "rb")
         st.audio(audio_file.read(), format="audio/mp3")
+        audio_file.close()
+        os.remove("tamil_voice.mp3")
 
         # ---------- Step 3: Legal Awareness ----------
         found_section = None
@@ -73,7 +74,6 @@ if st.button("Submit"):
 
         st.subheader("⚖️ Legal Awareness:")
         if found_section:
-            # Language toggle
             lang_option = st.radio("Select Language:", ("Tamil", "English"))
             if lang_option == "Tamil":
                 st.markdown(f"**பிரிவு:** {found_section['section']}")
