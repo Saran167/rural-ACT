@@ -1,130 +1,120 @@
-# -*- coding: utf-8 -*-
-"""AI Tamil Legal Awareness + Translator App"""
+# --- INSTALL (run once in Colab or local terminal) ---
+# !pip install streamlit googletrans==4.0.0-rc1 gtts pyngrok > /dev/null
 
 import streamlit as st
-from deep_translator import GoogleTranslator
+from googletrans import Translator
 from gtts import gTTS
-from io import BytesIO
-from datetime import datetime
-import pandas as pd
-import random
 import os
 
-# ----------------------------------------------------------------
-# 🧾 PAGE CONFIG
-# ----------------------------------------------------------------
-st.set_page_config(page_title="Tamil Legal Awareness & Translator", page_icon="⚖️", layout="centered")
+# Initialize Translator
+translator = Translator()
 
-st.title("⚖️ AI Tamil Legal Awareness & Translator App")
-st.markdown("""
-This app helps users **translate English to Tamil** and **understand legal rights**  
-related to **Section 66 (Cybercrime)** and **Section 420 (Cheating)** with voice support.
-""")
-
-# ----------------------------------------------------------------
-# 📁 FEEDBACK STORAGE
-# ----------------------------------------------------------------
-FEEDBACK_FILE = "user_feedback.csv"
-if not os.path.exists(FEEDBACK_FILE):
-    pd.DataFrame(columns=["time", "type", "input", "output", "feedback", "accuracy"]).to_csv(FEEDBACK_FILE, index=False)
-
-# ----------------------------------------------------------------
-# 🧩 LEGAL SECTIONS DATA
-# ----------------------------------------------------------------
-section_66 = {
-    "section": "IT Act Section 66 / 66C – Cyber Offences & Identity Theft",
-    "tamil_explanation": "இணையம் அல்லது கணினி மூலம் பிறரின் தரவை திருடுவது, கடவுச்சொல்லை பயன்படுத்துவது, அல்லது அனுமதியின்றி கணக்கில் நுழைவது குற்றமாகும்.",
-    "tamil_punishment": "மூன்று ஆண்டு வரை சிறை அல்லது ₹1 லட்சம் அபராதம் அல்லது இரண்டும்.",
-    "keywords": [
-        "hack","hacked","hacking","unauthorized access","password","otp","account","login",
-        "identity","impersonate","fake profile","clone account","phishing","malware",
-        "virus","cyber attack","privacy leak","data theft","database leak",
-        "ஹேக்","பாஸ்வேர்டு","ஆன்லைன் கணக்கு","ஓடிபி","டேட்டா திருடல்","அணுகல்"
-    ]
+# ---------------- LEGAL KNOWLEDGE BASE ----------------
+legal_sections = {
+    "420": {
+        "law": "IPC Section 420 - Cheating and Fraud",
+        "tamil": "இந்திய தண்டனைச் சட்டம் பிரிவு 420 - மோசடி மற்றும் ஏமாற்றல்",
+        "desc": "மற்றவரை ஏமாற்றி சொத்து அல்லது பணம் பெறுவது குற்றமாகும்.",
+        "punishment": "7 ஆண்டுகள் வரை சிறைத்தண்டனை மற்றும் அபராதம்."
+    },
+    "406": {
+        "law": "IPC Section 406 - Criminal Breach of Trust",
+        "tamil": "இந்திய தண்டனைச் சட்டம் பிரிவு 406 - நம்பிக்கையிழப்பு குற்றம்",
+        "desc": "நம்பிக்கையுடன் கொடுக்கப்பட்ட பொருளை தவறாக பயன்படுத்துவது குற்றம்.",
+        "punishment": "3 ஆண்டுகள் வரை சிறைத்தண்டனை அல்லது அபராதம் அல்லது இரண்டும்."
+    },
+    "66": {
+        "law": "IT Act Section 66 - Cybercrime & Hacking",
+        "tamil": "தகவல் தொழில்நுட்ப சட்டம் பிரிவு 66 - இணைய குற்றம் மற்றும் ஹாக்கிங்",
+        "desc": "மற்றவரின் கணினி அல்லது தரவை அனுமதியின்றி அணுகுவது குற்றமாகும்.",
+        "punishment": "3 ஆண்டுகள் வரை சிறைத்தண்டனை அல்லது ₹5 லட்சம் அபராதம் அல்லது இரண்டும்."
+    },
+    "67": {
+        "law": "IT Act Section 67 - Publishing Obscene Material Online",
+        "tamil": "தகவல் தொழில்நுட்ப சட்டம் பிரிவு 67 - அசிங்கமான உள்ளடக்கங்களை இணையத்தில் வெளியிடுதல்",
+        "desc": "அசிங்கமான அல்லது அநாகரீகமான உள்ளடக்கங்களை இணையத்தில் பகிர்வது குற்றமாகும்.",
+        "punishment": "5 ஆண்டுகள் வரை சிறைத்தண்டனை மற்றும் ₹10 லட்சம் அபராதம்."
+    },
+    "498A": {
+        "law": "IPC Section 498A - Cruelty by Husband or Relatives",
+        "tamil": "இந்திய தண்டனைச் சட்டம் பிரிவு 498A - கணவன் அல்லது உறவினரின் கொடுமை",
+        "desc": "பெண்ணுக்கு உடல் அல்லது மனவலிமை கொடுமை செய்வது குற்றமாகும்.",
+        "punishment": "3 ஆண்டுகள் வரை சிறைத்தண்டனை மற்றும் அபராதம்."
+    },
+    "354": {
+        "law": "IPC Section 354 - Assault or Criminal Force to Woman",
+        "tamil": "இந்திய தண்டனைச் சட்டம் பிரிவு 354 - பெண்ணைத் தாக்குதல் அல்லது அவமதித்தல்",
+        "desc": "பெண்ணை அவமதிக்கும் வகையில் தாக்குதல் அல்லது தொடுதல் குற்றமாகும்.",
+        "punishment": "2 ஆண்டுகள் முதல் 5 ஆண்டுகள் வரை சிறைத்தண்டனை மற்றும் அபராதம்."
+    }
 }
-section_420 = {
-    "section": "IPC Section 420 – மோசடி மற்றும் ஏமாற்றல்",
-    "tamil_explanation": "பிறரை ஏமாற்றி பணம் அல்லது நன்மை பெறுவது குற்றமாகும்.",
-    "tamil_punishment": "ஏழு ஆண்டு வரை சிறை மற்றும் அபராதம்.",
-    "keywords": [
-        "cheat","cheated","cheating","fraud","scam","fake","false promise",
-        "deceive","forgery","money","loan","upi","bank","credit card","atm","withdraw",
-        "investment","crypto","job offer","shopping fraud","dating scam",
-        "ஏமாற்று","மோசடி","பணம்","ஆன்லைன் மோசடி","லாட்டரி","வேலை வாய்ப்பு"
-    ]
-}
-legal_rules = [section_66, section_420]
 
-def detect_legal_section(text):
-    """Detect which legal section applies based on keywords."""
-    text_lower = text.lower()
-    for rule in legal_rules:
-        for kw in rule["keywords"]:
-            if kw.lower() in text_lower:
-                return rule
-    return None
+# ---------------- STREAMLIT APP UI ----------------
+st.set_page_config(page_title="AI Legal-Aware Translator", page_icon="⚖️", layout="centered")
+st.title("⚖️ AI Legal-Aware Translator")
+st.write("### 💬 Type any English sentence — get Tamil translation, voice, and legal awareness instantly!")
 
-def play_tamil_audio(text):
-    """Convert Tamil text to voice."""
-    tts = gTTS(text=text, lang="ta")
-    audio = BytesIO()
-    tts.write_to_fp(audio)
-    st.audio(audio.getvalue(), format="audio/mp3")
+# ---------------- USER INPUT ----------------
+user_input = st.text_area("Enter your English sentence:")
 
-# ----------------------------------------------------------------
-# 🗂️ TABS FOR TRANSLATION & LEGAL
-# ----------------------------------------------------------------
-tab1, tab2 = st.tabs(["🈁 Translation", "⚖️ Legal Awareness"])
+if st.button("Translate & Analyze"):
+    if user_input.strip():
+        # 1️⃣ TRANSLATION
+        translation = translator.translate(user_input, src='en', dest='ta').text
+        st.subheader("🈶 Tamil Translation:")
+        st.success(translation)
 
-# --------------------- TRANSLATION TAB -------------------------
-with tab1:
-    st.subheader("🈶 English ➜ Tamil Translator")
-    english_text = st.text_area("Enter any English sentence:", height=120, key="trans_input")
+        # 2️⃣ VOICE OUTPUT
+        tts = gTTS(translation, lang='ta')
+        tts.save("tamil_voice.mp3")
+        st.audio("tamil_voice.mp3")
 
-    if st.button("🔄 Translate to Tamil"):
-        if not english_text.strip():
-            st.warning("Please enter some text to translate.")
+        # 3️⃣ USER FEEDBACK
+        st.write("#### 📢 Feedback:")
+        feedback = st.radio(
+            "Did you understand the translation?",
+            ["✅ Yes, I understood", "❌ No, I didn't understand"]
+        )
+
+        if feedback == "❌ No, I didn't understand":
+            reason = st.radio(
+                "Select the reason:",
+                ["Text not clear", "Voice not clear", "Both not clear"]
+            )
+            st.info(f"📝 Feedback noted: {reason}")
+
+        # 4️⃣ LEGAL AWARENESS CHECK
+        matched_sections = []
+        for section, info in legal_sections.items():
+            keywords = {
+                "420": ["cheat", "fraud", "scam", "fake", "duplicate", "money", "trick", "con", "swindle"],
+                "406": ["trust", "property", "misuse", "breach"],
+                "66": ["hack", "cyber", "data", "computer", "account", "phish", "virus"],
+                "67": ["obscene", "vulgar", "photo", "image", "video", "sexual", "post"],
+                "498A": ["husband", "wife", "torture", "dowry", "violence", "family"],
+                "354": ["touch", "harass", "molest", "girl", "woman", "abuse"]
+            }
+            for kw in keywords.get(section, []):
+                if kw.lower() in user_input.lower():
+                    matched_sections.append((section, info))
+                    break
+
+        if matched_sections:
+            st.subheader("⚖️ Legal Awareness Found:")
+            for section, info in matched_sections:
+                st.markdown(f"**{info['law']}**")
+                st.markdown(f"📘 *{info['tamil']}*")
+                st.write(f"📝 விளக்கம்: {info['desc']}")
+                st.write(f"🚫 தண்டனை: {info['punishment']}")
+
+                # Tamil voice for legal info
+                voice_text = f"{info['tamil']}. {info['desc']}. தண்டனை: {info['punishment']}"
+                tts_legal = gTTS(voice_text, lang='ta')
+                tts_legal.save("legal_tamil.mp3")
+                st.audio("legal_tamil.mp3")
+
         else:
-            with st.spinner("Translating..."):
-                tamil_text = GoogleTranslator(source="en", target="ta").translate(english_text)
-                st.success("✅ Translation Successful!")
-                st.markdown(f"### 🇮🇳 Tamil Translation:\n**{tamil_text}**")
-                play_tamil_audio(tamil_text)
+            st.info("✅ No legal issue detected in your input.")
+    else:
+        st.warning("⚠️ Please enter some text to translate and analyze.")
 
-                acc = round(random.uniform(90, 100), 2)
-                df = pd.read_csv(FEEDBACK_FILE)
-                df.loc[len(df)] = [datetime.now(), "Translation", english_text, tamil_text, "Auto", acc]
-                df.to_csv(FEEDBACK_FILE, index=False)
-
-# --------------------- LEGAL TAB -------------------------
-with tab2:
-    st.subheader("⚖️ Legal Awareness – Know Your Rights")
-    legal_input = st.text_area(
-        "Ask your question or describe what happened (in Tamil or English):",
-        placeholder="Example: Someone cheated me in money or என் வாட்ஸ்அப் ஹேக் செய்யப்பட்டது.",
-        height=120, key="legal_input"
-    )
-
-    if st.button("🔍 Analyze Legal Section"):
-        if not legal_input.strip():
-            st.warning("Please enter a sentence related to a legal situation.")
-        else:
-            rule = detect_legal_section(legal_input)
-            if rule:
-                st.success(f"✅ It comes under **{rule['section']}**")
-                st.write(f"**விளக்கம்:** {rule['tamil_explanation']}")
-                st.write(f"**தண்டனை:** {rule['tamil_punishment']}")
-                play_tamil_audio(rule["tamil_explanation"] + " " + rule["tamil_punishment"])
-
-                feedback = st.radio("Did this answer your question?", ("Yes", "No"), horizontal=True)
-                acc = 100 if feedback == "Yes" else 70
-                df = pd.read_csv(FEEDBACK_FILE)
-                df.loc[len(df)] = [datetime.now(), "Legal", legal_input, rule['section'], feedback, acc]
-                df.to_csv(FEEDBACK_FILE, index=False)
-            else:
-                st.info("⚠️ No specific section detected for your input. Try rephrasing or use a different example.")
-                play_tamil_audio("இந்த குற்றத்திற்கான பிரிவு தற்போது கிடைக்கவில்லை. மீண்டும் முயற்சி செய்யவும்.")
-
-# ----------------------------------------------------------------
-st.markdown("---")
-st.caption("Developed for Tamil legal awareness — integrates AI translation, speech & law education.")
