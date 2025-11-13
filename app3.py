@@ -1,4 +1,4 @@
-# app.py — Fixed version (robust feedback CSV appending)
+# app.py — Final Version (with Tamil Voice for Legal Awareness + Feedback System)
 import streamlit as st
 from deep_translator import GoogleTranslator
 from gtts import gTTS
@@ -12,281 +12,222 @@ import os
 # Page config
 # -------------------------
 st.set_page_config(page_title="Tamil Legal Awareness", page_icon="⚖️", layout="centered")
-st.title("🛡️ Tamil Legal-Aware Translator (Single Input)")
-st.caption("Enter English text → Tamil translation + Tamil voice → Legal awareness (Tamil) → Feedback")
+st.title("🛡️ Rural ACT: Tamil Legal Awareness Translator")
+st.caption("Translate English → Tamil + Voice + Legal Awareness + Smart Feedback")
 
 # -------------------------
-# Feedback CSV path & helper
+# Feedback CSV setup
 # -------------------------
 FEEDBACK_CSV = "user_feedback.csv"
-FEEDBACK_COLUMNS = [
-    "timestamp", "input_english", "tamil_translation", "detected_sections",
-    "feedback", "feedback_detail"
-]
+COLUMNS = ["timestamp", "input_english", "tamil_translation", "detected_sections", "feedback", "feedback_detail"]
 
-def ensure_feedback_csv():
-    """Ensure CSV exists with correct header."""
-    if not os.path.exists(FEEDBACK_CSV):
-        pd.DataFrame(columns=FEEDBACK_COLUMNS).to_csv(FEEDBACK_CSV, index=False)
+if not os.path.exists(FEEDBACK_CSV):
+    pd.DataFrame(columns=COLUMNS).to_csv(FEEDBACK_CSV, index=False)
 
-def append_feedback_row(row_dict):
-    """
-    Append a feedback row (dict) reliably.
-    row_dict keys should be subset of FEEDBACK_COLUMNS.
-    """
-    ensure_feedback_csv()
+def append_feedback(data):
+    """Append feedback safely"""
     try:
         df = pd.read_csv(FEEDBACK_CSV)
     except Exception:
-        # If csv corrupt or unreadable, recreate
-        df = pd.DataFrame(columns=FEEDBACK_COLUMNS)
-    # build a full-row dict with all columns (fill missing with "")
-    full_row = {col: row_dict.get(col, "") for col in FEEDBACK_COLUMNS}
-    new_df = pd.DataFrame([full_row])
-    df = pd.concat([df, new_df], ignore_index=True)
+        df = pd.DataFrame(columns=COLUMNS)
+    new = pd.DataFrame([data])
+    df = pd.concat([df, new], ignore_index=True)
     df.to_csv(FEEDBACK_CSV, index=False)
 
-# ensure csv on start
-ensure_feedback_csv()
-
 # -------------------------
-# Legal DB (Tamil focused, expanded)
+# Legal Knowledge Base (Expanded)
 # -------------------------
 LEGAL_DB = {
     "66C/66D": {
-        "section": "தகவல் தொழில்நுட்பச் சட்டம் 66C / 66D",
+        "section": "தகவல் தொழில்நுட்பச் சட்டம் பிரிவு 66C / 66D",
         "ta_explanation": (
-            "66C: பிறரின் அடையாளத்தை (password, OTP, account) திருடி பயன்படுத்துவது - அடையாள திருட்டு.\n"
-            "66D: இணையத்தில் வேறொரு நபராக நடித்து மோசடி செய்வது (phishing, fake bank links, OTP கேட்பு).\n\n"
-            "எடுத்துக் கூடு: வங்கி OTP கேட்டு பணம் எடுத்தல், போலி KYC/வங்கி இணைப்புகள்.\n\n"
-            "செய்ய வேண்டியது: OTP/Password ஒருவரிடம் பகிர வேண்டாம். உடனே வங்கி மற்றும் சைபர் போலீசில் புகார் செய்யவும்."
-        ),
-        "ta_punishment": "தண்டனை: 3 ஆண்டுகள் வரை சிறை மற்றும்/அல்லது அபராதம் (சட்டப்படி).",
-        "keywords": [
-            "otp","one time password","password","pwd","login","account","verify link","verify your account",
-            "phish","phishing","fake link","bank link","kyc","bank notice","hacked","hack",
-            "ஓடிபி","கடவுச்சொல்","கணக்கு","ஹேக்","இணைப்பு"
-        ]
-    },
-    "420": {
-        "section": "IPC பிரிவு 420",
-        "ta_explanation": (
-            "மோசடி: பிறரை ஏமாற்றி பணம் அல்லது சொத்தைப் பெறுதல். இதில் advance fee scams, fake loan apps, lottery scams அடங்கும்.\n\n"
-            "எடுத்துக்காட்டு: ‘நீங்கள் வெற்றி பெற்றீர்கள் — பரிசுக்காக 5000 அனுப்பவும்’ அல்லது போலி அரசு / வங்கி அழைப்பு மூலம் பணம் கேட்பது.\n\n"
-            "செய்ய வேண்டியது: பணம் அனுப்பாதீர்கள்; அதிகாரப்பூர்வ தளத்தைச் சோதிக்கவும்; அனைத்து சான்றுகளையும் (SMS, UPI screenshot) சேமிக்கவும்; போலீசில் புகார் செய்யவும்."
-        ),
-        "ta_punishment": "தண்டனை: 7 ஆண்டுகள் வரை சிறை மற்றும் அபராதம்.",
-        "keywords": [
-            "scam","scammed","fraud","cheat","cheated","lottery","prize","advance fee","send money","transfer money",
-            "loan app","fake loan","collect money","payment","rupees","₹","money","paid","payment failed",
-            "மோசடி","ஏமாற்று","பணம்","கடன்","லாட்டரி"
-        ]
-    },
-    "406": {
-        "section": "IPC பிரிவு 406",
-        "ta_explanation": (
-            "நம்பிக்கையின்மையால் சொத்து/பணத்தை தவறாக பயன்படுத்துதல் (Criminal breach of trust).\n\n"
-            "எடுத்துக்காட்டு: கடன் எடுத்தவர் பணம் திருப்பிச் செய்யவில்லை அல்லது ஒப்படைக்கப்பட்ட பொருட்களை திருடிவிடுதல்.\n\n"
-            "செய்ய வேண்டியது: எழுத்துப்பூர்வ உடன்படிக்கைகள் வைத்திருங்கள்; ஆதாரங்கள் சேகரிக்கவும்; போலீஸ் அல்லது சட்ட ஆலோசனை பெறவும்."
+            "66C: பிறரின் அடையாளத்தை (password, OTP, account) திருடி பயன்படுத்துவது அடையாள திருட்டாகும்.\n"
+            "66D: இணையத்தில் போலியாக நடித்து (fake bank calls, phishing, fraud links) ஏமாற்றுவது குற்றமாகும்.\n\n"
+            "👉 எடுத்துக்காட்டு: போலி வங்கி SMS, KYC link மூலம் OTP கேட்டு பணம் எடுப்பது.\n"
+            "👉 செய்ய வேண்டியது: OTP/Password யாருக்கும் சொல்ல வேண்டாம்; வங்கியிலும் சைபர் போலீஸிலும் உடனே புகார் செய்யவும்."
         ),
         "ta_punishment": "தண்டனை: 3 ஆண்டுகள் வரை சிறை அல்லது அபராதம் அல்லது இரண்டும்.",
-        "keywords": [
-            "breach of trust","breach trust","embezzle","did not return loan","misuse funds","stole money",
-            "நம்பிக்கை","திருட்டு","கடன் திருப்பவில்லை"
-        ]
+        "keywords": ["otp","password","bank","kyc","phishing","fake link","hack","ஹேக்","பாஸ்வேர்டு","ஓடிபி"]
+    },
+    "420": {
+        "section": "IPC பிரிவு 420 – மோசடி மற்றும் ஏமாற்றல்",
+        "ta_explanation": (
+            "பிறரை ஏமாற்றி பணம், பொருள் அல்லது நன்மை பெறுவது குற்றமாகும்.\n\n"
+            "👉 எடுத்துக்காட்டு: போலி பரிசு/லாட்டரி, job scam, loan app fraud, fake investment link.\n"
+            "👉 செய்ய வேண்டியது: பணம் அனுப்பாதீர்கள், அரசு தளங்களில் சரிபார்க்கவும், ஆதாரங்களை சேமிக்கவும்."
+        ),
+        "ta_punishment": "தண்டனை: 7 ஆண்டுகள் வரை சிறை மற்றும் அபராதம்.",
+        "keywords": ["fraud","scam","cheat","money","loan","lottery","பணம்","மோசடி","ஏமாற்று"]
+    },
+    "406": {
+        "section": "IPC பிரிவு 406 – நம்பிக்கை மீறல் (Criminal Breach of Trust)",
+        "ta_explanation": (
+            "ஒருவரிடம் ஒப்படைக்கப்பட்ட சொத்து/பணத்தை தவறாக பயன்படுத்துதல் குற்றமாகும்.\n\n"
+            "👉 எடுத்துக்காட்டு: கடன் திருப்பவில்லை, நம்பிக்கை வைத்து கொடுத்த பொருளை திருப்பவில்லை.\n"
+            "👉 செய்ய வேண்டியது: எழுத்துப்பூர்வ சான்றுகள் வைத்திருங்கள்; போலீஸில் புகார் செய்யவும்."
+        ),
+        "ta_punishment": "தண்டனை: 3 ஆண்டுகள் வரை சிறை அல்லது அபராதம்.",
+        "keywords": ["breach","trust","loan","return money","நம்பிக்கை","கடன்"]
     },
     "354D": {
-        "section": "IPC பிரிவு 354D",
+        "section": "IPC பிரிவு 354D – துரத்தல் மற்றும் தொந்தரவு (Stalking / Harassment)",
         "ta_explanation": (
-            "அடிக்கடி ஒருவரை தொந்தரவு செய்தல்/துரத்துதல் (cyberstalking / harassment).\n\n"
-            "எடுத்துக்காட்டு: ஒருவருக்கு தொடர்ந்து மிரட்டுதலான செய்திகள் அனுப்புதல், புகைப்படங்கள் பகிர்ந்து அவமதித்தல்.\n\n"
-            "செய்ய வேண்டியது: முழு ஆதாரங்கள் (screenshots, call logs) சேமிக்கவும்; உடனே போலீஸில் அல்லது cyber cell-ல் புகார் அளிக்கவும்."
+            "ஒருவரை மீண்டும் மீண்டும் தொடர்பு கொள்ளுதல் அல்லது மிரட்டுதல், இணையத்தில் தொந்தரவு செய்தல் குற்றமாகும்.\n\n"
+            "👉 எடுத்துக்காட்டு: தொடர்ச்சியாக messages அனுப்புதல், பிளாக்மெயில் செய்தல், புகைப்படம் பகிர்தல்.\n"
+            "👉 செய்ய வேண்டியது: screenshots சேமிக்கவும்; சைபர் போலீஸில் புகார் செய்யவும்."
         ),
-        "ta_punishment": "தண்டனை: குற்றத்தின் தீவிரத்தின்படி சிறை மற்றும் அபராதம்.",
-        "keywords": [
-            "harass","harassed","harassment","stalk","stalking","stalker","follow","following","threat","threaten",
-            "blackmail","blackmailed","molest","abuse","மிரட்டி","அச்சுறுத்து","தொடர்ந்து","தொடர்ச்சியாக"
-        ]
+        "ta_punishment": "தண்டனை: சிறை மற்றும் அபராதம் (குற்றத்தின் தீவிரத்தைப் பொறுத்து).",
+        "keywords": ["harass","harassment","threat","blackmail","follow","மிரட்டு","தொந்தரவு"]
     },
     "67": {
-        "section": "IT Act பிரிவு 67 / 67A",
+        "section": "IT Act பிரிவு 67 / 67A – அசிங்கமான உள்ளடக்க பகிர்வு",
         "ta_explanation": (
-            "அனுமதி இல்லாமல் பாலின/அசிங்க உள்ளடக்கங்கள் பகிர்தல் (obscene images/videos).\n\n"
-            "எடுத்துக்காட்டு: யாரோ ஒருவரின் நியூட் புகைப்படங்களை பகிர்தல் அல்லது பாலியல் வீடியோக்களை இணையத்தில் வெளியிடுதல்.\n\n"
-            "செய்ய வேண்டியது: உடனே ஆதாரங்களை சேமித்து சைபர் போலீசில் புகார் செய்யவும்; சமூக ஊடகங்களில் report/flag செய்யவும்."
+            "பாலியல் / தனிப்பட்ட புகைப்படம் அல்லது வீடியோவை அனுமதி இல்லாமல் பகிர்வது குற்றமாகும்.\n\n"
+            "👉 எடுத்துக்காட்டு: யாரோ ஒருவரின் private photo/video இணையத்தில் வெளியிடுதல்.\n"
+            "👉 செய்ய வேண்டியது: புகார் செய்யவும், சமூக ஊடகங்களில் report செய்யவும்."
         ),
-        "ta_punishment": "தண்டனை: முதல் முறையில் 3 ஆண்டுகள் மற்றும் அபராதம்; மீண்டும் செய்தால் அதிகமாகும்.",
-        "keywords": [
-            "nude","porn","obscene","private photo","leak","leaked","share photo","sex video","child porn",
-            "அசிங்க","புகைப்படம்","வீடியோ","லீக்"
-        ]
+        "ta_punishment": "தண்டனை: முதல் முறையில் 3 ஆண்டுகள் சிறை, மீண்டும் செய்தால் அதிகமாகும்.",
+        "keywords": ["photo","video","leak","nude","obscene","அசிங்க","புகைப்படம்","வீடியோ"]
     }
 }
 
 # -------------------------
-# Translator & TTS helpers
+# Translation & TTS
 # -------------------------
 translator = GoogleTranslator(source='en', target='ta')
 
-def translate_to_tamil(text):
+def translate_tamil(text):
     try:
         return translator.translate(text)
-    except Exception:
-        return ""
+    except:
+        return "மொழிபெயர்ப்பு தோல்வியடைந்தது."
 
-def tts_tamil_bytes(tamil_text):
+def tamil_tts(text):
     try:
-        tts = gTTS(text=tamil_text, lang="ta")
-        buf = BytesIO()
-        tts.write_to_fp(buf)
-        return buf.getvalue()
-    except Exception:
+        tts = gTTS(text=text, lang="ta")
+        audio = BytesIO()
+        tts.write_to_fp(audio)
+        return audio.getvalue()
+    except:
         return None
 
 # -------------------------
-# Detection helper
+# Legal detection
 # -------------------------
-def detect_sections(english_text):
-    t = english_text.lower()
-    t = re.sub(r'[\t\n\r]+', ' ', t)
-    t = re.sub(r'\s+', ' ', t).strip()
+def detect_laws(text):
     found = []
-    for key, info in LEGAL_DB.items():
+    text = text.lower()
+    for sec, info in LEGAL_DB.items():
         for kw in info["keywords"]:
-            kw_l = kw.lower().strip()
-            if ' ' in kw_l:
-                if kw_l in t:
-                    found.append((key, info))
-                    break
-            else:
-                pattern = r'\b' + re.escape(kw_l) + r'\b'
-                if re.search(pattern, t):
-                    found.append((key, info))
-                    break
+            if re.search(r'\b' + re.escape(kw.lower()) + r'\b', text):
+                found.append(info)
+                break
     return found
 
 # -------------------------
-# Session state and UI
+# User Input
 # -------------------------
-if "show_detail_buttons" not in st.session_state:
-    st.session_state.show_detail_buttons = False
-if "last_input" not in st.session_state:
-    st.session_state.last_input = ""
-if "last_translation" not in st.session_state:
-    st.session_state.last_translation = ""
-if "detected_keys" not in st.session_state:
-    st.session_state.detected_keys = []
+st.markdown("### ✉️ Enter English text (SMS / message):")
+eng = st.text_area("", height=110)
 
-st.markdown("#### ➤ Enter **one English sentence** (type or paste SMS/notification):")
-english_input = st.text_area("", height=110, key="input_box")
-
-if st.button("Translate → Tamil & Analyze"):
-    if not english_input.strip():
-        st.warning("Please enter some English text.")
+if st.button("Translate & Show Awareness"):
+    if eng.strip() == "":
+        st.warning("Please enter an English sentence.")
     else:
-        tamil_text = translate_to_tamil(english_input)
-        if not tamil_text:
-            st.error("Translation failed. Check network or try again.")
-            tamil_text = ""
+        ta_text = translate_tamil(eng)
+        st.subheader("🈶 Tamil Translation:")
+        st.success(ta_text)
 
-        st.subheader("🈶 தமிழில் மொழிபெயர்ப்பு:")
-        st.success(tamil_text)
+        audio = tamil_tts(ta_text)
+        if audio:
+            st.audio(audio, format="audio/mp3")
 
-        audio_bytes = tts_tamil_bytes(tamil_text)
-        if audio_bytes:
-            st.audio(audio_bytes, format="audio/mp3")
-        else:
-            st.info("Audio not available (TTS issue).")
-
-        st.session_state.last_input = english_input
-        st.session_state.last_translation = tamil_text
-
-        matches = detect_sections(english_input)
-        st.session_state.detected_keys = [k for k, _ in matches]
-
+        # Detect and show legal awareness
+        laws = detect_laws(eng)
         st.divider()
-        st.subheader("⚖️ சட்ட விழிப்புணர்வு (தமிழில்):")
-        if matches:
-            for key, info in matches:
-                st.markdown(f"### {info['section']}")
-                st.write(f"**விளக்கம்:** {info['ta_explanation']}")
-                st.write(f"**தண்டனை:** {info['ta_punishment']}")
+        st.subheader("⚖️ Legal Awareness (தமிழில்):")
+
+        if laws:
+            for law in laws:
+                st.markdown(f"### {law['section']}")
+                st.write(f"**விளக்கம்:** {law['ta_explanation']}")
+                st.write(f"**தண்டனை:** {law['ta_punishment']}")
+                # 🔊 Tamil voice for legal section
+                legal_voice = tamil_tts(f"{law['section']} {law['ta_explanation']} {law['ta_punishment']}")
+                if legal_voice:
+                    st.audio(legal_voice, format="audio/mp3")
                 st.write("---")
         else:
-            st.info("✅ இந்த செய்திக்கு தொடர்புடைய சட்டப் பகுதி கண்டறியப்படவில்லை.")
+            st.info("✅ No legal issue found in this sentence.")
 
-        st.session_state.show_detail_buttons = False
+        # Save latest translation for feedback
+        st.session_state.last_input = eng
+        st.session_state.last_translation = ta_text
 
-# Feedback UI
+# -------------------------
+# Feedback Section
+# -------------------------
 st.divider()
-st.subheader("🗣️ பயனர் கருத்து (User Feedback)")
+st.subheader("🗣️ User Feedback")
 
-if st.session_state.last_input:
-    col1, col2 = st.columns([1,1])
-    with col1:
-        if st.button("✅ Understand"):
-            # append feedback using helper
-            row = {
+if "last_input" in st.session_state and st.session_state.last_input:
+    col1, col2 = st.columns(2)
+    if col1.button("✅ Understand"):
+        append_feedback({
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "input_english": st.session_state.last_input,
+            "tamil_translation": st.session_state.last_translation,
+            "detected_sections": "",
+            "feedback": "Understand",
+            "feedback_detail": ""
+        })
+        st.success("✅ Feedback saved successfully.")
+
+    if col2.button("❌ Not Understand"):
+        st.session_state.show_detail = True
+
+    if st.session_state.get("show_detail", False):
+        st.markdown("### 😕 What was not clear?")
+        d1, d2, d3 = st.columns(3)
+        if d1.button("📝 Text"):
+            append_feedback({
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "input_english": st.session_state.last_input,
                 "tamil_translation": st.session_state.last_translation,
-                "detected_sections": ",".join(st.session_state.detected_keys) if st.session_state.detected_keys else "",
-                "feedback": "Understand",
-                "feedback_detail": ""
-            }
-            append_feedback_row(row)
-            st.success("✅ Feedback saved successfully.")
-    with col2:
-        if st.button("❌ Not Understand"):
-            st.session_state.show_detail_buttons = True
-
-    if st.session_state.show_detail_buttons:
-        st.markdown("### 😕 எது புரியவில்லை? (What was not clear?)")
-        d1, d2, d3 = st.columns(3)
-        with d1:
-            if st.button("📝 Text"):
-                row = {
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "input_english": st.session_state.last_input,
-                    "tamil_translation": st.session_state.last_translation,
-                    "detected_sections": ",".join(st.session_state.detected_keys) if st.session_state.detected_keys else "",
-                    "feedback": "Not Understand",
-                    "feedback_detail": "Text"
-                }
-                append_feedback_row(row)
-                st.success("✅ Feedback saved successfully (Text).")
-                st.session_state.show_detail_buttons = False
-        with d2:
-            if st.button("🔊 Voice"):
-                row = {
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "input_english": st.session_state.last_input,
-                    "tamil_translation": st.session_state.last_translation,
-                    "detected_sections": ",".join(st.session_state.detected_keys) if st.session_state.detected_keys else "",
-                    "feedback": "Not Understand",
-                    "feedback_detail": "Voice"
-                }
-                append_feedback_row(row)
-                st.success("✅ Feedback saved successfully (Voice).")
-                st.session_state.show_detail_buttons = False
-        with d3:
-            if st.button("🔁 Both"):
-                row = {
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "input_english": st.session_state.last_input,
-                    "tamil_translation": st.session_state.last_translation,
-                    "detected_sections": ",".join(st.session_state.detected_keys) if st.session_state.detected_keys else "",
-                    "feedback": "Not Understand",
-                    "feedback_detail": "Both"
-                }
-                append_feedback_row(row)
-                st.success("✅ Feedback saved successfully (Both).")
-                st.session_state.show_detail_buttons = False
+                "detected_sections": "",
+                "feedback": "Not Understand",
+                "feedback_detail": "Text"
+            })
+            st.success("✅ Feedback saved successfully (Text).")
+            st.session_state.show_detail = False
+        if d2.button("🔊 Voice"):
+            append_feedback({
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "input_english": st.session_state.last_input,
+                "tamil_translation": st.session_state.last_translation,
+                "detected_sections": "",
+                "feedback": "Not Understand",
+                "feedback_detail": "Voice"
+            })
+            st.success("✅ Feedback saved successfully (Voice).")
+            st.session_state.show_detail = False
+        if d3.button("🔁 Both"):
+            append_feedback({
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "input_english": st.session_state.last_input,
+                "tamil_translation": st.session_state.last_translation,
+                "detected_sections": "",
+                "feedback": "Not Understand",
+                "feedback_detail": "Both"
+            })
+            st.success("✅ Feedback saved successfully (Both).")
+            st.session_state.show_detail = False
 else:
-    st.info("Translate something first — then give feedback.")
+    st.info("Translate a sentence first to enable feedback.")
 
 st.markdown("---")
-st.caption("Feedback stored locally in user_feedback.csv — you can download it from your Streamlit Cloud app files.")
+st.caption("🪶 Feedbacks stored in user_feedback.csv for analysis.")
+
 
 
 
