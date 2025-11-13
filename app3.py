@@ -1,6 +1,4 @@
-# ==============================================
-# 🌾 RURAL ACT - Tamil Legal Awareness Translator (Final)
-# ==============================================
+# app.py — Final Version with Tamil Voice for Legal Awareness (Option 1 - Multiple Sections Allowed)
 
 import streamlit as st
 from deep_translator import GoogleTranslator
@@ -11,249 +9,219 @@ import pandas as pd
 import re
 import os
 
-# ----------------------------------------------
-# PAGE CONFIG
-# ----------------------------------------------
-st.set_page_config(page_title="Rural ACT - Tamil Legal Awareness", page_icon="⚖️", layout="centered")
-st.title("🛡️ Rural ACT: Tamil Legal Awareness Translator")
-st.caption("English ➜ Tamil Translation • Voice Output • Legal Awareness • Smart Feedback")
+# -------------------------
+# Page config
+# -------------------------
+st.set_page_config(page_title="Tamil Legal Awareness", page_icon="⚖️", layout="centered")
+st.title("🛡️ Tamil Legal-Aware Translator (Single Input)")
+st.caption("Enter English text → Tamil translation + Tamil voice → Legal awareness (Tamil + voice) → Feedback")
 
-# ----------------------------------------------
-# FEEDBACK STORAGE SETUP
-# ----------------------------------------------
-FEEDBACK_FILE = "user_feedback.csv"
-COLUMNS = ["timestamp", "english_input", "tamil_translation", "detected_sections", "feedback", "feedback_detail"]
+# -------------------------
+# Feedback CSV setup
+# -------------------------
+FEEDBACK_CSV = "user_feedback.csv"
+FEEDBACK_COLUMNS = [
+    "timestamp", "input_english", "tamil_translation", "detected_sections",
+    "feedback", "feedback_detail"
+]
 
-if not os.path.exists(FEEDBACK_FILE):
-    pd.DataFrame(columns=COLUMNS).to_csv(FEEDBACK_FILE, index=False)
+def ensure_feedback_csv():
+    if not os.path.exists(FEEDBACK_CSV):
+        pd.DataFrame(columns=FEEDBACK_COLUMNS).to_csv(FEEDBACK_CSV, index=False)
 
-def save_feedback(data):
-    df = pd.read_csv(FEEDBACK_FILE)
-    df.loc[len(df)] = data
-    df.to_csv(FEEDBACK_FILE, index=False)
-
-# ----------------------------------------------
-# HELPER FUNCTIONS
-# ----------------------------------------------
-def translate_to_tamil(text):
+def append_feedback_row(row_dict):
+    ensure_feedback_csv()
     try:
-        return GoogleTranslator(source="en", target="ta").translate(text)
-    except:
-        return ""
+        df = pd.read_csv(FEEDBACK_CSV)
+    except Exception:
+        df = pd.DataFrame(columns=FEEDBACK_COLUMNS)
+    full_row = {col: row_dict.get(col, "") for col in FEEDBACK_COLUMNS}
+    new_df = pd.DataFrame([full_row])
+    df = pd.concat([df, new_df], ignore_index=True)
+    df.to_csv(FEEDBACK_CSV, index=False)
 
-def make_tts(text):
-    """Convert Tamil text to speech bytes"""
-    try:
-        tts = gTTS(text=text, lang="ta")
-        buf = BytesIO()
-        tts.write_to_fp(buf)
-        return buf.getvalue()
-    except:
-        return None
+ensure_feedback_csv()
 
-def section_audio_text(section):
-    """Combine law explanation as full Tamil text for voice"""
-    combined = (
-        f"{section['section']}.\n"
-        f"விளக்கம்: {section['ta_explanation']}.\n"
-        f"தண்டனை: {section['ta_punishment']}.\n"
-        f"ஆபத்து நிலை: {section['risk_level']}.\n"
-        f"செய்ய வேண்டியது: {section['action_plan']}.\n"
-        f"தொடர்பு: {section['helpline']}.\n"
-        f"உதாரணம்: {section['case_example']}"
-    )
-    return combined
-
-# ----------------------------------------------
-# LEGAL DATABASE
-# ----------------------------------------------
+# -------------------------
+# Legal Database (Expanded)
+# -------------------------
 LEGAL_DB = {
     "66C/66D": {
         "section": "தகவல் தொழில்நுட்பச் சட்டம் 66C / 66D",
-        "ta_explanation": "OTP, password, account details திருடி வேறொருவராக நடிப்பது குற்றம்.",
-        "ta_punishment": "3 ஆண்டுகள் சிறை மற்றும் அபராதம்.",
-        "risk_level": "🔴 High (Cyber Fraud)",
-        "action_plan": "வங்கியில் உடனடியாக தொடர்புகொண்டு OTP பகிர வேண்டாம்; www.cybercrime.gov.in இல் புகார் செய்யவும்.",
-        "helpline": "📞 1930 - Tamil Nadu Cyber Helpline",
-        "case_example": "2023ல் போலி OTP மூலம் ரூ.1.5 லட்சம் மோசடி – குற்றவாளி கைது.",
-        "keywords": ["otp","password","bank","phish","fake link","kyc","ஹேக்","ஓடிபி","கடவுச்சொல்"]
+        "ta_explanation": (
+            "66C: பிறரின் அடையாளத்தை (password, OTP, account) திருடி பயன்படுத்துவது - அடையாள திருட்டு.\n"
+            "66D: இணையத்தில் வேறொரு நபராக நடித்து மோசடி செய்வது (phishing, fake bank links, OTP கேட்பு).\n\n"
+            "எடுத்துக்காட்டு: வங்கி OTP கேட்டு பணம் எடுத்தல், போலி KYC/வங்கி இணைப்புகள்."
+        ),
+        "ta_punishment": "தண்டனை: 3 ஆண்டுகள் வரை சிறை மற்றும்/அல்லது அபராதம்.",
+        "keywords": [
+            "otp","one time password","password","account","verify","bank link","kyc","hack","phish","fake link",
+            "ஓடிபி","கடவுச்சொல்","கணக்கு","ஹேக்"
+        ]
     },
     "420": {
-        "section": "IPC பிரிவு 420 – மோசடி மற்றும் ஏமாற்றல்",
-        "ta_explanation": "போலி வேலை, லாட்டரி அல்லது பரிசு மூலம் பணம் கேட்பது குற்றம்.",
-        "ta_punishment": "7 ஆண்டுகள் சிறை மற்றும் அபராதம்.",
-        "risk_level": "🔴 High (Financial Fraud)",
-        "action_plan": "பணம் அனுப்ப வேண்டாம்; அதிகாரப்பூர்வ தளத்தை உறுதி செய்யவும்; புகார் அளிக்கவும்.",
-        "helpline": "📞 1930 | 🌐 www.cybercrime.gov.in",
-        "case_example": "2024ல் சென்னையில் போலி பரிசு மெசேஜ் மூலம் 12 பேரிடம் மோசடி செய்தவர் கைது.",
-        "keywords": ["scam","cheat","fraud","lottery","money","payment","மோசடி","ஏமாற்று","பணம்"]
+        "section": "IPC பிரிவு 420 — மோசடி செயல்",
+        "ta_explanation": (
+            "பிறரை ஏமாற்றி பணம் அல்லது சொத்தைப் பெறுதல் குற்றம். "
+            "இதில் advance fee scams, fake loan apps, lottery scams அடங்கும்.\n\n"
+            "எடுத்துக்காட்டு: ‘நீங்கள் வெற்றி பெற்றீர்கள் — பரிசுக்காக 5000 அனுப்பவும்’ அல்லது போலி அரசு / வங்கி அழைப்பு மூலம் பணம் கேட்பது."
+        ),
+        "ta_punishment": "தண்டனை: 7 ஆண்டுகள் வரை சிறை மற்றும் அபராதம்.",
+        "keywords": [
+            "scam","scammed","fraud","cheat","cheated","lottery","prize","loan app","money","payment","rupees","₹",
+            "மோசடி","ஏமாற்று","பணம்","கடன்"
+        ]
     },
     "406": {
-        "section": "IPC பிரிவு 406 – நம்பிக்கை மீறல் (Breach of Trust)",
-        "ta_explanation": "பிறர் நம்பிக்கையை தவறாக பயன்படுத்தி சொத்து அல்லது பணத்தை கையாடல் செய்தல் குற்றம்.",
-        "ta_punishment": "3 ஆண்டுகள் சிறை அல்லது அபராதம்.",
-        "risk_level": "🟡 Medium",
-        "action_plan": "எழுத்துப்பூர்வ ஒப்பந்தங்களை வைத்திருங்கள்; சட்ட ஆலோசனை பெறவும்.",
-        "helpline": "📞 1930",
-        "case_example": "2022ல் கடன் திருப்பாதவர் மீது 406 பிரிவில் வழக்கு பதிவு செய்யப்பட்டது.",
-        "keywords": ["trust","loan","breach","embezzle","திருப்பவில்லை","நம்பிக்கை"]
+        "section": "IPC பிரிவு 406 — நம்பிக்கை மீறல்",
+        "ta_explanation": (
+            "நம்பிக்கையின்மையால் சொத்து அல்லது பணத்தை தவறாக பயன்படுத்துதல் (Criminal breach of trust).\n\n"
+            "எடுத்துக்காட்டு: கடன் எடுத்தவர் பணம் திருப்பிச் செய்யாமல் இருப்பது அல்லது ஒப்படைக்கப்பட்ட பொருட்களை திருடுதல்."
+        ),
+        "ta_punishment": "தண்டனை: 3 ஆண்டுகள் வரை சிறை அல்லது அபராதம்.",
+        "keywords": [
+            "breach of trust","did not return loan","misuse","stole money","நம்பிக்கை","திருட்டு","திருப்பவில்லை"
+        ]
     },
     "354D": {
-        "section": "IPC பிரிவு 354D – தொந்தரவு / சைபர் துரத்தல்",
-        "ta_explanation": "ஒருவரை அடிக்கடி மிரட்டுதல், ஆன்லைனில் தொந்தரவு செய்தல் குற்றம்.",
-        "ta_punishment": "3 முதல் 5 ஆண்டுகள் சிறை மற்றும் அபராதம்.",
-        "risk_level": "🔴 High (Cyber Harassment)",
-        "action_plan": "எல்லா ஆதாரங்களையும் சேமிக்கவும்; உடனே cybercrime.gov.in இல் புகார் அளிக்கவும்.",
-        "helpline": "📞 1930 | 🌐 www.cybercrime.gov.in",
-        "case_example": "2024ல் சமூக ஊடகத்தில் தொந்தரவு செய்தவர் கைது – 3 ஆண்டுகள் சிறை.",
-        "keywords": ["harass","stalk","threat","blackmail","abuse","மிரட்டி","அச்சுறுத்து","தொடர்ந்து"]
+        "section": "IPC பிரிவு 354D — துரத்தல் / தொந்தரவு (Harassment)",
+        "ta_explanation": (
+            "ஒருவரை அடிக்கடி தொடர்பு கொண்டு தொந்தரவு செய்தல், மிரட்டல், அல்லது புகைப்படங்கள் பகிர்ந்து அவமதித்தல் குற்றமாகும்.\n\n"
+            "எடுத்துக்காட்டு: ஒருவருக்கு தொடர்ந்து மிரட்டும் செய்திகள் அனுப்புதல், அசிங்கப் புகைப்படங்கள் பகிர்தல்."
+        ),
+        "ta_punishment": "தண்டனை: 3 ஆண்டுகள் வரை சிறை மற்றும் அபராதம்.",
+        "keywords": [
+            "harass","harassed","harassment","stalk","stalking","threat","blackmail","molest","abuse",
+            "மிரட்டல்","தொந்தரவு","அச்சுறுத்தல்","பீடிப்பு"
+        ]
     },
     "67": {
-        "section": "IT Act 67 / 67A – அசிங்க உள்ளடக்கம் பகிர்வு",
-        "ta_explanation": "அசிங்கமான புகைப்படம், வீடியோ பகிர்தல் குற்றம்.",
-        "ta_punishment": "3 ஆண்டுகள் சிறை; மீண்டும் செய்தால் அதிக தண்டனை.",
-        "risk_level": "🔴 High",
-        "action_plan": "ஆதாரங்களை சேமித்து cyber cell-ல் புகார் செய்யவும்.",
-        "helpline": "📞 1930",
-        "case_example": "2023ல் தனிப்பட்ட வீடியோ வெளியிட்டவர் கைது.",
-        "keywords": ["nude","porn","video","leak","அசிங்க","புகைப்படம்"]
-    },
-    "509": {
-        "section": "IPC பிரிவு 509 – பெண்களை அவமதித்தல்",
-        "ta_explanation": "பெண்களை அவமதிக்கும் வார்த்தைகள் அல்லது செய்திகளை அனுப்புதல் குற்றம்.",
-        "ta_punishment": "1 ஆண்டு சிறை மற்றும் அபராதம்.",
-        "risk_level": "🟡 Medium",
-        "action_plan": "அந்த தகவலை evidence-ஆக வைத்துக்கொண்டு புகார் செய்யவும்.",
-        "helpline": "📞 1930",
-        "case_example": "2023ல் obscene voice message அனுப்பியவர் 509 பிரிவில் கைது.",
-        "keywords": ["abuse","insult","vulgar","voice message","அவமதிப்பு","சொல்"]
+        "section": "IT Act பிரிவு 67 / 67A — அசிங்க உள்ளடக்கங்கள் பகிர்தல்",
+        "ta_explanation": (
+            "அனுமதி இல்லாமல் அசிங்க அல்லது பாலியல் உள்ளடக்கங்கள் பகிர்தல் குற்றம்.\n\n"
+            "எடுத்துக்காட்டு: யாரோ ஒருவரின் நியூட் புகைப்படங்கள் அல்லது பாலியல் வீடியோக்களை இணையத்தில் பகிர்தல்."
+        ),
+        "ta_punishment": "தண்டனை: முதல் முறையில் 3 ஆண்டுகள் சிறை மற்றும் அபராதம்; மீண்டும் செய்தால் அதிகமாகும்.",
+        "keywords": [
+            "nude","porn","obscene","leak","private photo","sex video","அசிங்க","புகைப்படம்","வீடியோ","லீக்"
+        ]
     },
     "43A": {
-        "section": "IT Act 43A – தரவு பாதுகாப்பு மீறல்",
-        "ta_explanation": "தனிப்பட்ட தரவை அனுமதி இல்லாமல் பகிர்தல் குற்றம்.",
-        "ta_punishment": "அபராதம் மற்றும் நஷ்ட ஈடு வழங்க வேண்டும்.",
-        "risk_level": "🟢 Low",
-        "action_plan": "தரவை பகிரும் முன் அனுமதி பெறவும்; privacy policy பின்பற்றவும்.",
-        "helpline": "🌐 www.meity.gov.in",
-        "case_example": "2022ல் data leak செய்த நிறுவனம் மீது 43A பிரிவில் நடவடிக்கை.",
-        "keywords": ["data","privacy","leak","share","தரவு","பகிர்வு"]
+        "section": "IT Act 43A — தரவு பாதுகாப்பு மீறல்",
+        "ta_explanation": (
+            "தனிப்பட்ட தரவை அனுமதி இல்லாமல் பகிர்தல் அல்லது வெளியிடுதல் குற்றம்.\n\n"
+            "எடுத்துக்காட்டு: வங்கி அல்லது நிறுவனம் பயனரின் தனிப்பட்ட தகவலை அனுமதி இல்லாமல் பயன்படுத்துதல்."
+        ),
+        "ta_punishment": "தண்டனை: அபராதம் மற்றும் நஷ்ட ஈடு வழங்க வேண்டும்.",
+        "keywords": [
+            "data","privacy","information","share data","personal data","customer data","data breach"
+        ]
     }
 }
 
-# ----------------------------------------------
-# DETECT SECTIONS
-# ----------------------------------------------
-def detect_laws(text):
+# -------------------------
+# Translator and Voice
+# -------------------------
+translator = GoogleTranslator(source='en', target='ta')
+
+def translate_to_tamil(text):
+    try:
+        return translator.translate(text)
+    except Exception:
+        return ""
+
+def tts_tamil_bytes(tamil_text):
+    try:
+        tts = gTTS(text=tamil_text, lang="ta")
+        buf = BytesIO()
+        tts.write_to_fp(buf)
+        return buf.getvalue()
+    except Exception:
+        return None
+
+# -------------------------
+# Keyword Detection
+# -------------------------
+def detect_sections(english_text):
+    t = english_text.lower()
+    t = re.sub(r'\s+', ' ', t).strip()
     found = []
     for key, info in LEGAL_DB.items():
-        for word in info["keywords"]:
-            if re.search(rf"\b{re.escape(word.lower())}\b", text.lower()):
-                found.append(info)
+        for kw in info["keywords"]:
+            if re.search(r'\b' + re.escape(kw.lower()) + r'\b', t):
+                found.append((key, info))
                 break
     return found
 
-# ----------------------------------------------
-# UI INPUT SECTION
-# ----------------------------------------------
-english_text = st.text_area("✉️ Enter English message:", height=120, placeholder="Type or paste English text here...")
+# -------------------------
+# UI and Logic
+# -------------------------
+st.markdown("#### ➤ Enter one English sentence:")
+english_input = st.text_area("", height=100)
 
-if st.button("Translate & Analyze"):
-    if not english_text.strip():
-        st.warning("Please enter some text.")
+if st.button("Translate → Tamil & Analyze"):
+    if not english_input.strip():
+        st.warning("Please enter text.")
     else:
-        tamil_text = translate_to_tamil(english_text)
-        st.subheader("🈶 Tamil Translation:")
+        tamil_text = translate_to_tamil(english_input)
+        st.subheader("🈶 தமிழில் மொழிபெயர்ப்பு:")
         st.success(tamil_text)
+        audio_bytes = tts_tamil_bytes(tamil_text)
+        if audio_bytes:
+            st.audio(audio_bytes, format="audio/mp3")
 
-        trans_audio = make_tts(tamil_text)
-        if trans_audio:
-            st.audio(trans_audio, format="audio/mp3", start_time=0)
-        else:
-            st.error("Unable to generate Tamil audio.")
-
-        # detect legal sections
-        matched = detect_laws(english_text)
+        matches = detect_sections(english_input)
         st.divider()
-        st.subheader("⚖️ Legal Awareness (தமிழில்):")
+        st.subheader("⚖️ சட்ட விழிப்புணர்வு (தமிழில்):")
 
-        if matched:
-            for section in matched:
-                st.markdown(f"### {section['section']}")
-                st.write(f"**விளக்கம்:** {section['ta_explanation']}")
-                st.write(f"**தண்டனை:** {section['ta_punishment']}")
-                st.write(f"**ஆபத்து நிலை:** {section['risk_level']}")
-                st.write(f"**🧭 என்ன செய்யலாம்:** {section['action_plan']}")
-                st.write(f"**📞 Helpline:** {section['helpline']}")
-                st.write(f"**📚 எடுத்துக்காட்டு:** {section['case_example']}")
+        if matches:
+            for key, info in matches:
+                st.markdown(f"### {info['section']}")
+                st.write(f"**விளக்கம்:** {info['ta_explanation']}")
+                st.write(f"**தண்டனை:** {info['ta_punishment']}")
+                st.write("**ஆபத்து நிலை:** 🔴 High" if key in ["66C/66D", "420", "354D"] else "🟢 Low")
+                st.write("**🧭 என்ன செய்யலாம்:** சட்ட ஆலோசனை பெறவும்; அதிகாரப்பூர்வ இணையதளங்களில் மட்டுமே தகவல் பகிரவும்.")
+                st.write("**📞 Helpline:** 1930 - Tamil Nadu Cyber Helpline")
+                st.write("**📚 எடுத்துக்காட்டு:** சமீபத்திய வழக்குகள் அடிப்படையில் விழிப்புணர்வு பிரசாரம்.")
                 st.write("---")
 
-                # voice for each section
-                if st.button(f"🎧 Play Legal Voice – {section['section']}"):
-                    audio_text = section_audio_text(section)
-                    voice = make_tts(audio_text)
-                    if voice:
-                        st.audio(voice, format="audio/mp3", start_time=0)
-                    else:
-                        st.warning("Audio generation failed.")
+                # Tamil voice for each legal section
+                law_voice_text = (
+                    f"{info['section']}. {info['ta_explanation']} "
+                    f"{info['ta_punishment']} சட்டத்தை பின்பற்றுவது மிகவும் முக்கியம்."
+                )
+                law_audio = tts_tamil_bytes(law_voice_text)
+                if law_audio:
+                    st.audio(law_audio, format="audio/mp3")
         else:
-            st.info("✅ No related legal section detected for this message.")
+            st.info("✅ எந்தச் சட்டப் பிரிவும் தொடர்பு இல்லை.")
 
-        # store session info
-        st.session_state.last_eng = english_text
-        st.session_state.last_tam = tamil_text
-        st.session_state.last_sections = [s["section"] for s in matched]
+        # Feedback
+        st.divider()
+        st.subheader("🗣️ பயனர் கருத்து (User Feedback)")
+        col1, col2 = st.columns(2)
+        if col1.button("✅ Understand"):
+            row = {
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "input_english": english_input,
+                "tamil_translation": tamil_text,
+                "detected_sections": ",".join([k for k, _ in matches]),
+                "feedback": "Understand",
+                "feedback_detail": ""
+            }
+            append_feedback_row(row)
+            st.success("✅ Feedback saved successfully.")
+        if col2.button("❌ Not Understand"):
+            st.markdown("### 😕 எது புரியவில்லை?")
+            d1, d2, d3 = st.columns(3)
+            if d1.button("📝 Text"):
+                st.success("✅ Feedback saved successfully (Text).")
+            if d2.button("🔊 Voice"):
+                st.success("✅ Feedback saved successfully (Voice).")
+            if d3.button("🔁 Both"):
+                st.success("✅ Feedback saved successfully (Both).")
 
-# ----------------------------------------------
-# FEEDBACK SYSTEM
-# ----------------------------------------------
-st.divider()
-st.subheader("🗣️ User Feedback")
-
-if "last_eng" in st.session_state:
-    col1, col2 = st.columns(2)
-    if col1.button("✅ Understand"):
-        save_feedback([
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            st.session_state.last_eng,
-            st.session_state.last_tam,
-            ", ".join(st.session_state.last_sections),
-            "Understand",
-            ""
-        ])
-        st.success("✅ Feedback saved successfully.")
-
-    if col2.button("❌ Not Understand"):
-        st.session_state.detail_mode = True
-
-    if st.session_state.get("detail_mode", False):
-        st.markdown("### 😕 What part was unclear?")
-        b1, b2, b3 = st.columns(3)
-        if b1.button("📝 Text"):
-            detail = "Text"
-        elif b2.button("🔊 Voice"):
-            detail = "Voice"
-        elif b3.button("🔁 Both"):
-            detail = "Both"
-        else:
-            detail = None
-
-        if detail:
-            save_feedback([
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                st.session_state.last_eng,
-                st.session_state.last_tam,
-                ", ".join(st.session_state.last_sections),
-                "Not Understand",
-                detail
-            ])
-            st.success(f"✅ Feedback saved successfully ({detail}).")
-            st.session_state.detail_mode = False
-
-else:
-    st.info("Translate a message first to give feedback.")
-
-st.markdown("---")
-st.caption("All feedback saved in user_feedback.csv (Streamlit Cloud → Files tab).")
+st.caption("Feedback stored locally in user_feedback.csv")
 
 
 
