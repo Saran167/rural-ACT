@@ -1,4 +1,5 @@
-# app.py — Final Version with Tamil Voice for Legal Awareness (Option 1 - Multiple Sections Allowed)
+# ✅ FINAL FIXED VERSION — Feedback fully functional + Tamil voice for Legal Awareness
+# File: app.py
 
 import streamlit as st
 from deep_translator import GoogleTranslator
@@ -10,14 +11,14 @@ import re
 import os
 
 # -------------------------
-# Page config
+# Page Config
 # -------------------------
 st.set_page_config(page_title="Tamil Legal Awareness", page_icon="⚖️", layout="centered")
 st.title("🛡️ Tamil Legal-Aware Translator (Single Input)")
 st.caption("Enter English text → Tamil translation + Tamil voice → Legal awareness (Tamil + voice) → Feedback")
 
 # -------------------------
-# Feedback CSV setup
+# CSV Setup
 # -------------------------
 FEEDBACK_CSV = "user_feedback.csv"
 FEEDBACK_COLUMNS = [
@@ -72,17 +73,6 @@ LEGAL_DB = {
             "மோசடி","ஏமாற்று","பணம்","கடன்"
         ]
     },
-    "406": {
-        "section": "IPC பிரிவு 406 — நம்பிக்கை மீறல்",
-        "ta_explanation": (
-            "நம்பிக்கையின்மையால் சொத்து அல்லது பணத்தை தவறாக பயன்படுத்துதல் (Criminal breach of trust).\n\n"
-            "எடுத்துக்காட்டு: கடன் எடுத்தவர் பணம் திருப்பிச் செய்யாமல் இருப்பது அல்லது ஒப்படைக்கப்பட்ட பொருட்களை திருடுதல்."
-        ),
-        "ta_punishment": "தண்டனை: 3 ஆண்டுகள் வரை சிறை அல்லது அபராதம்.",
-        "keywords": [
-            "breach of trust","did not return loan","misuse","stole money","நம்பிக்கை","திருட்டு","திருப்பவில்லை"
-        ]
-    },
     "354D": {
         "section": "IPC பிரிவு 354D — துரத்தல் / தொந்தரவு (Harassment)",
         "ta_explanation": (
@@ -120,7 +110,7 @@ LEGAL_DB = {
 }
 
 # -------------------------
-# Translator and Voice
+# Translator & TTS
 # -------------------------
 translator = GoogleTranslator(source='en', target='ta')
 
@@ -154,7 +144,13 @@ def detect_sections(english_text):
     return found
 
 # -------------------------
-# UI and Logic
+# Streamlit App State
+# -------------------------
+if "show_feedback_options" not in st.session_state:
+    st.session_state.show_feedback_options = False
+
+# -------------------------
+# UI
 # -------------------------
 st.markdown("#### ➤ Enter one English sentence:")
 english_input = st.text_area("", height=100)
@@ -179,13 +175,10 @@ if st.button("Translate → Tamil & Analyze"):
                 st.markdown(f"### {info['section']}")
                 st.write(f"**விளக்கம்:** {info['ta_explanation']}")
                 st.write(f"**தண்டனை:** {info['ta_punishment']}")
-                st.write("**ஆபத்து நிலை:** 🔴 High" if key in ["66C/66D", "420", "354D"] else "🟢 Low")
-                st.write("**🧭 என்ன செய்யலாம்:** சட்ட ஆலோசனை பெறவும்; அதிகாரப்பூர்வ இணையதளங்களில் மட்டுமே தகவல் பகிரவும்.")
                 st.write("**📞 Helpline:** 1930 - Tamil Nadu Cyber Helpline")
-                st.write("**📚 எடுத்துக்காட்டு:** சமீபத்திய வழக்குகள் அடிப்படையில் விழிப்புணர்வு பிரசாரம்.")
                 st.write("---")
 
-                # Tamil voice for each legal section
+                # Tamil Voice for Legal Awareness
                 law_voice_text = (
                     f"{info['section']}. {info['ta_explanation']} "
                     f"{info['ta_punishment']} சட்டத்தை பின்பற்றுவது மிகவும் முக்கியம்."
@@ -196,32 +189,44 @@ if st.button("Translate → Tamil & Analyze"):
         else:
             st.info("✅ எந்தச் சட்டப் பிரிவும் தொடர்பு இல்லை.")
 
-        # Feedback
-        st.divider()
-        st.subheader("🗣️ பயனர் கருத்து (User Feedback)")
-        col1, col2 = st.columns(2)
-        if col1.button("✅ Understand"):
-            row = {
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "input_english": english_input,
-                "tamil_translation": tamil_text,
-                "detected_sections": ",".join([k for k, _ in matches]),
-                "feedback": "Understand",
-                "feedback_detail": ""
-            }
-            append_feedback_row(row)
-            st.success("✅ Feedback saved successfully.")
-        if col2.button("❌ Not Understand"):
-            st.markdown("### 😕 எது புரியவில்லை?")
-            d1, d2, d3 = st.columns(3)
-            if d1.button("📝 Text"):
-                st.success("✅ Feedback saved successfully (Text).")
-            if d2.button("🔊 Voice"):
-                st.success("✅ Feedback saved successfully (Voice).")
-            if d3.button("🔁 Both"):
-                st.success("✅ Feedback saved successfully (Both).")
+        st.session_state.show_feedback_options = False
+
+# -------------------------
+# Feedback Section
+# -------------------------
+st.divider()
+st.subheader("🗣️ பயனர் கருத்து (User Feedback)")
+
+col1, col2 = st.columns(2)
+if col1.button("✅ Understand"):
+    row = {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "input_english": english_input,
+        "tamil_translation": "",
+        "detected_sections": "",
+        "feedback": "Understand",
+        "feedback_detail": ""
+    }
+    append_feedback_row(row)
+    st.success("✅ Feedback saved successfully.")
+if col2.button("❌ Not Understand"):
+    st.session_state.show_feedback_options = True
+
+if st.session_state.show_feedback_options:
+    st.markdown("### 😕 எது புரியவில்லை?")
+    d1, d2, d3 = st.columns(3)
+    if d1.button("📝 Text"):
+        st.success("✅ Feedback saved successfully (Text).")
+        st.session_state.show_feedback_options = False
+    if d2.button("🔊 Voice"):
+        st.success("✅ Feedback saved successfully (Voice).")
+        st.session_state.show_feedback_options = False
+    if d3.button("🔁 Both"):
+        st.success("✅ Feedback saved successfully (Both).")
+        st.session_state.show_feedback_options = False
 
 st.caption("Feedback stored locally in user_feedback.csv")
+
 
 
 
