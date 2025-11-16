@@ -1,5 +1,6 @@
-import streamrequests as st
+import streamlit as st
 from gtts import gTTS
+import requests
 from io import BytesIO
 import pandas as pd
 import re
@@ -8,7 +9,7 @@ from datetime import datetime
 st.set_page_config(page_title="Rural ACT - Tamil Legal Awareness Translator")
 
 # ----------------------------------------------------
-# 1. TRANSLATION (STABLE – USING MyMemory API)
+# 1. TRANSLATION (Stable – MyMemory API)
 # ----------------------------------------------------
 def translate_to_tamil(text):
     try:
@@ -25,7 +26,7 @@ def translate_to_tamil(text):
 
 
 # ----------------------------------------------------
-# 2. TAMIL VOICE GENERATION
+# 2. TAMIL VOICE
 # ----------------------------------------------------
 def generate_tamil_voice(text):
     try:
@@ -47,23 +48,23 @@ def get_legal_awareness(text):
     rules = {
         r"(otp|verify|bank|account|password)": (
             "IT Act 66C/66D – OTP Fraud",
-            "இது OTP/வங்கி சம்பந்தப்பட்ட மோசடி செய்தியாக இருக்கலாம். OTP-ஐ யாருக்கும் கொடுக்க வேண்டாம்."
+            "இது OTP/வங்கி மோசடி செய்தியாக இருக்கலாம். OTP-ஐ யாருக்கும் கொடுக்க வேண்டாம்."
         ),
         r"(loan|money|scheme|offer)": (
             "IPC 420 – Cheating / Scam",
-            "பணம், கடன், லாட்டரி போன்ற பொய்யான சலுகைகள் மோசடி."
+            "பணம், கடன், லாட்டரி போன்ற சலுகைகள் மோசடி."
         ),
         r"(harass|stalk|follow|threat|disturb)": (
             "IPC 354D – Harassment / Stalking",
-            "தொடர்ந்து தொந்தரவு செய்தல், மிரட்டல் செய்தல் குற்றமாகும்."
+            "தொடர்ந்து பின்தொடர்தல்/தொந்தரவு செய்தல் குற்றம்."
         ),
         r"(abuse|obscene|nude|adult|vulgar)": (
             "IT Act 67 – Obscene Content",
-            "அசிங்கமான / சட்டவிரோத உள்ளடக்கம் அனுப்புதல் குற்றம்."
+            "அசிங்கமான/சட்டவிரோத உள்ளடக்கம் அனுப்புதல் குற்றம்."
         ),
         r"(cheat|fraud|fake)": (
             "IPC 420 – Fraud",
-            "இதில் மோசடி/ஏமாற்றும் நோக்கம் தெளிவாக உள்ளது."
+            "இதில் மோசடி நோக்கம் உள்ளது."
         )
     }
 
@@ -75,7 +76,7 @@ def get_legal_awareness(text):
 
 
 # ----------------------------------------------------
-# 4. FEEDBACK LOGGER
+# 4. FEEDBACK SAVE
 # ----------------------------------------------------
 def save_feedback(eng, tam, law, fb_type):
     data = {
@@ -83,10 +84,11 @@ def save_feedback(eng, tam, law, fb_type):
         "Tamil Translation": tam,
         "Detected Law": law,
         "Feedback": fb_type,
-        "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        "Time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
 
     df = pd.DataFrame([data])
+
     try:
         df.to_csv("user_feedback.csv", mode="a", header=False, index=False)
     except:
@@ -105,6 +107,7 @@ if st.button("Translate & Analyze"):
     if english_input.strip() == "":
         st.warning("Please enter a message.")
     else:
+
         # Translation
         tamil_text = translate_to_tamil(english_input)
 
@@ -129,7 +132,7 @@ if st.button("Translate & Analyze"):
         st.subheader("⚖️ Tamil Legal Awareness:")
         st.info(f"**{section}**\n\n{desc}")
 
-        # Feedback Buttons
+        # Feedback
         st.subheader("📝 Feedback")
         col1, col2 = st.columns(2)
 
