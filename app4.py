@@ -8,7 +8,7 @@ Original file is located at
 """
 
 import streamlit as st
-from googletrans import Translator
+from deep_translator import GoogleTranslator
 from gtts import gTTS
 import tempfile
 import os
