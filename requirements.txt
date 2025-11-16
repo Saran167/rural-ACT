@@ -1,5 +1,5 @@
 streamlit
-deep-translator
 gtts
-pandas
+deep-translator
 requests
+pandas
