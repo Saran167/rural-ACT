@@ -2,3 +2,4 @@ streamlit
 gtts
 deep-translator
 pandas
+requests
