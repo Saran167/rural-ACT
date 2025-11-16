@@ -1,5 +1,5 @@
 streamlit
+google-translate-python
 gtts
-deep-translator
 pandas
 requests
