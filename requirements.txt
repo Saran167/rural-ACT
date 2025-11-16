@@ -1,4 +1,4 @@
 streamlit
-deep-translator
-gtts
+gTTS
 pandas
+requests
